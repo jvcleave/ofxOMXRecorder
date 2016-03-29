@@ -3,42 +3,73 @@
 #include "OMX_Maps.h"
 
 
-class ofxOMXRecorder
+class ofxOMXRecorderSettings
 {
 public:
     
- 
+    int width;
+    int height;
+    int colorFormat;
+    int fps;
+    float bitrateMegabytesPerSecond;
+    bool enablePrettyFileName;
+    ofxOMXRecorderSettings()
+    {
+        width = 1280;
+        height = 720;
+        colorFormat = GL_RGBA;
+        fps = 30;
+        bitrateMegabytesPerSecond = 2.0;
+        enablePrettyFileName = true;
+    };
+};
+
+
+class ofxOMXRecorder
+{
+public:
 
     ofxOMXRecorder();
     ~ofxOMXRecorder();
 
     void setup(int width, int height, int colorFormat);
+    void setup(ofxOMXRecorderSettings);
+    
     void update(unsigned char* pixels);
-    void startRecording();
-    void startRecording(string filePath_);
+
+    void startRecording(string absoluteFilePath_="");
     void stopRecording();
     bool isRecording();
     
-    int numMBps;
-    vector<ofFile>files;
+    vector<ofFile>recordings;
+    string createFileName();
+    
+    int getFrameCounter()
+    {
+        return frameCounter;
+    }
+    
+    void close();
+    
 private:
     
-    int width;
-    int height;
-    int colorFormat;
+    bool isOpen;
+    void resetValues();
+    void teardown();
+    ofxOMXRecorderSettings settings;
+    
     int pixelSize;
     bool stopRequested;
     ofBuffer recordingFileBuffer;
-    string filePath;
+    string absoluteFilePath;
     ofFbo* fbo;
     int frameCounter;
-    void createFileName();
+    
     bool startedRecording;
     bool videoFileWritten;
     bool finishedRecording;
     
     void writeFile();
-    bool didWriteFile();
 
     void onPortSettingsChanged();
     void onEmptyBuffer();

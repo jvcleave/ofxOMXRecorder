@@ -7,19 +7,6 @@
 class ofApp : public ofBaseApp, public KeyListener{
 public:
     
-    ofFbo fbo;
-    ofTexture logo;
-    ofxOMXRecorder recorder;
-    unsigned char* pixels;
-    int numColors;
-    
-    bool doStartRecording;
-    bool doStopRecording;
-
-    bool hasWrittenFile;
-    GLint colorFormat;
-
-    
     void setup();
     void update();
     void draw();
@@ -31,4 +18,17 @@ public:
     {
         keyPressed((int)e.character);
     };
+    
+    
+    ofFbo fbo;
+    ofTexture logo;
+    ofxOMXRecorder recorder;
+    GLint colorFormat;
+    unsigned char* pixels;
+    
+    
+    bool doStartRecording;
+    bool doStopRecording;
 };
+
+

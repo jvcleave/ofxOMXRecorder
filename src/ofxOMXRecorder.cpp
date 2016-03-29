@@ -5,23 +5,35 @@
 
 ofxOMXRecorder::ofxOMXRecorder()
 {
+    resetValues();
+}
+
+void ofxOMXRecorder::resetValues()
+{
     encoder = NULL;
     inputBuffer = NULL;
     outputBuffer = NULL;
-    width = 0;
-    height = 0;
-    colorFormat = 0;
+    
     pixelSize = 0;
-    numMBps = 2;
     frameCounter = 0;
     stopRequested = false;
     startedRecording = false;
-    createFileName();
-    videoFileWritten = false;
+    absoluteFilePath = "";
     finishedRecording = false;
+    isOpen = false;
 }
 
-ofxOMXRecorder::~ofxOMXRecorder()
+void ofxOMXRecorder::close()
+{
+    //TODO: file may not be written
+    if (isRecording) 
+    {
+        stopRecording();
+    }
+    teardown();
+}
+
+void ofxOMXRecorder::teardown()
 {
     if (encoder) 
     {
@@ -46,15 +58,20 @@ ofxOMXRecorder::~ofxOMXRecorder()
         
         error = OMX_FreeHandle(encoder);
         OMX_TRACE(error);
+        
+        
     }
+    resetValues();
 }
-void ofxOMXRecorder::setup(int width_, int height_, int colorFormat_)
-{
-    
-    width = width_;
-    height = height_;
-    colorFormat = colorFormat_;
 
+ofxOMXRecorder::~ofxOMXRecorder()
+{
+    teardown();    
+}
+
+void ofxOMXRecorder::setup(ofxOMXRecorderSettings settings_)
+{
+    settings = settings_;
     
     OMX_ERRORTYPE error = OMX_ErrorNone;
     error = OMX_Init();
@@ -80,20 +97,20 @@ void ofxOMXRecorder::setup(int width_, int height_, int colorFormat_)
     error =OMX_GetParameter(encoder, OMX_IndexParamPortDefinition, &inputPortDefinition);
     OMX_TRACE(error);
     
-    inputPortDefinition.format.video.nFrameWidth = width;
-    inputPortDefinition.format.video.nFrameHeight = height;
-    inputPortDefinition.format.video.xFramerate = 30 << 16;
-    inputPortDefinition.format.video.nSliceHeight = inputPortDefinition.format.video.nFrameHeight;
-    inputPortDefinition.format.video.nStride = inputPortDefinition.format.video.nFrameWidth;
+    inputPortDefinition.format.video.nFrameWidth    =   settings.width;
+    inputPortDefinition.format.video.nFrameHeight   =   settings.height;
+    inputPortDefinition.format.video.xFramerate     =   settings.fps << 16;
+    inputPortDefinition.format.video.nSliceHeight   =   inputPortDefinition.format.video.nFrameHeight;
+    inputPortDefinition.format.video.nStride        =   inputPortDefinition.format.video.nFrameWidth;
     //inputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;
-    if (colorFormat == GL_RGB) 
+    if (settings.colorFormat == GL_RGB) 
     {
-        pixelSize = width*height*3;
+        pixelSize = settings.width * settings.height * 3;
         inputPortDefinition.format.video.eColorFormat = OMX_COLOR_Format24bitBGR888;
     }
-    if (colorFormat == GL_RGBA) 
+    if (settings.colorFormat == GL_RGBA) 
     {
-        pixelSize = width*height*4;
+        pixelSize = settings.width * settings.height * 4;
         inputPortDefinition.format.video.eColorFormat = OMX_COLOR_Format32bitABGR8888;
     }
     
@@ -111,7 +128,7 @@ void ofxOMXRecorder::setup(int width_, int height_, int colorFormat_)
     error =OMX_GetParameter(encoder, OMX_IndexParamPortDefinition, &outputPortDefinition);
     OMX_TRACE(error);
     
-    int recordingBitRate = MEGABYTE_IN_BITS * numMBps;
+    int recordingBitRate = int(MEGABYTE_IN_BITS * settings.bitrateMegabytesPerSecond);
     outputPortDefinition.format.video.nBitrate = recordingBitRate;
 
     error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &outputPortDefinition);
@@ -138,8 +155,6 @@ void ofxOMXRecorder::setup(int width_, int height_, int colorFormat_)
     OMX_TRACE(error);
     
     encodingFormat.eCompressionFormat = OMX_VIDEO_CodingAVC;
-    
-    
     error = OMX_SetParameter(encoder, OMX_IndexParamVideoPortFormat, &encodingFormat);
     OMX_TRACE(error);
 
@@ -186,32 +201,21 @@ bool ofxOMXRecorder::isRecording()
     return result;
 }
 
-void ofxOMXRecorder::createFileName()
+void ofxOMXRecorder::startRecording(string absoluteFilePath_) //default ""
 {
-    stringstream fileName;
-    fileName << ofGetTimestampString() << "_";
-    fileName << ".h264";
-    filePath = ofToDataPath(fileName.str(), true);
-}
-
-void ofxOMXRecorder::startRecording()
-{
-    startRecording(filePath);
-}
-
-void ofxOMXRecorder::startRecording(string filePath_)
-{
-    if (filePath_.empty()) 
+    if (!isOpen) 
     {
-        filePath = filePath_;
-    }else
-    {
-        createFileName();
+        setup(settings);
     }
-    videoFileWritten = false;
+    if (isRecording())
+    {
+        return;
+    }
+    absoluteFilePath = absoluteFilePath_;
     startedRecording = true;
     stopRequested = false;
     finishedRecording = false;
+    outputBuffer->nFlags = 0;
     OMX_ERRORTYPE error = OMX_SendCommand(encoder, OMX_CommandStateSet, OMX_StateExecuting, NULL);
     OMX_TRACE(error);
     
@@ -225,16 +229,24 @@ void ofxOMXRecorder::stopRecording()
 
 void ofxOMXRecorder::update(unsigned char* pixels)
 {
+    if (!isOpen) 
+    {
+        return;
+    }
+    if (!pixels) 
+    {
+        return;
+    }
     if (finishedRecording) 
     {
         return;
     }
-    OMX_ERRORTYPE error;
+    
     inputBuffer->pBuffer = pixels;
     inputBuffer->nFilledLen = pixelSize;
     //ofLogVerbose(__func__) << "inputBuffer: " << GetBufferHeaderString(inputBuffer);
 
-    error = OMX_EmptyThisBuffer(encoder, inputBuffer);
+    OMX_ERRORTYPE error = OMX_EmptyThisBuffer(encoder, inputBuffer);
     OMX_TRACE(error);
 }
 
@@ -243,6 +255,7 @@ void ofxOMXRecorder::onPortSettingsChanged()
     ofLogVerbose(__func__) << "";
     
 }
+
 void ofxOMXRecorder::onEmptyBuffer()
 {
     //ofLogVerbose(__func__) << "";
@@ -254,47 +267,68 @@ void ofxOMXRecorder::onEmptyBuffer()
 
 void ofxOMXRecorder::onFillBuffer()
 {
-    ofLogVerbose(__func__) << "frameCounter: " << frameCounter;
-    frameCounter++;
-    recordingFileBuffer.append((const char*) outputBuffer->pBuffer + outputBuffer->nOffset, outputBuffer->nFilledLen);
+    //ofLogVerbose(__func__) << "frameCounter: " << frameCounter;
     bool isKeyFrame =  (outputBuffer->nFlags & OMX_BUFFERFLAG_SYNCFRAME);
     if (isKeyFrame)
     {
         ofLogVerbose(__func__) << frameCounter << " IS KEYFRAME";
         
     }
-    if (stopRequested && isKeyFrame) 
+    if (stopRequested && (isKeyFrame ^ (outputBuffer->nFlags & OMX_BUFFERFLAG_SYNCFRAME))) 
     {
         OMX_ERRORTYPE error = OMX_SendCommand(encoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
         OMX_TRACE(error);
         finishedRecording = true;
         writeFile();
         frameCounter = 0;
-        
+    }else
+    {
+        frameCounter++;
+        recordingFileBuffer.append((const char*) outputBuffer->pBuffer + outputBuffer->nOffset, outputBuffer->nFilledLen);
     }
 }
 
-bool ofxOMXRecorder::didWriteFile()
+
+string ofxOMXRecorder::createFileName()
 {
-    return videoFileWritten;
+    stringstream fileName;
+    fileName << ofGetTimestampString();
+    if (settings.enablePrettyFileName) 
+    {
+        fileName << "_"<< settings.width << "x" << settings.height << "_";
+        fileName << settings.fps << "fps_";
+        fileName << settings.bitrateMegabytesPerSecond << "MBps_";
+        fileName << frameCounter << "frames";
+    }
+    fileName << ".h264";
+    return fileName.str();
+    
 }
+
+
 
 void ofxOMXRecorder::writeFile()
 {
-    
-    videoFileWritten = ofBufferToFile(filePath, recordingFileBuffer, true);
-    if(videoFileWritten)
+    if(absoluteFilePath.empty())
     {
-        ofFile file(filePath);
-        files.push_back(file);
-        ofLogError(__func__) << filePath << " SUCCESSFULLY WRITTEN";
+        absoluteFilePath = ofToDataPath(createFileName(), true);
+    }
+
+    bool didWriteFile = ofBufferToFile(absoluteFilePath, recordingFileBuffer, true);
+    if(didWriteFile)
+    {
+        ofFile file(absoluteFilePath);
+        recordings.push_back(file);
+        ofLogVerbose(__func__) << absoluteFilePath << " SUCCESSFULLY WRITTEN";
     }else
     {
-        ofLogError(__func__) << filePath << " COULD NOT BE WRITTEN";
+        ofLogError(__func__) << absoluteFilePath << " COULD NOT BE WRITTEN";
     }
     recordingFileBuffer.clear();
+    absoluteFilePath = "";
     startedRecording = false;
     stopRequested = false;
+    teardown();
 }
 
 
