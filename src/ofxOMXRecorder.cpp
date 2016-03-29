@@ -26,7 +26,7 @@ void ofxOMXRecorder::resetValues()
 void ofxOMXRecorder::close()
 {
     //TODO: file may not be written
-    if (isRecording) 
+    if (isRecording()) 
     {
         stopRecording();
     }
@@ -177,7 +177,7 @@ void ofxOMXRecorder::setup(ofxOMXRecorderSettings settings_)
     //ofLogVerbose(__func__) << "outputBuffer: " << GetBufferHeaderString(outputBuffer);
     //ofLogVerbose(__func__) << GetPortDefinitionString(outPortDef);
     
-  
+    isOpen = true;
    
         
 }

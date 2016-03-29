@@ -13,12 +13,9 @@ void ofApp::setup(){
     doStartRecording = false;
     doStopRecording = false;
     int numColors = 0;
-    colorFormat = GL_RGB;
     
-    
-    
-    int width = 640;
-    int height = 480;
+    int width = 1280;
+    int height = 720;
     colorFormat = GL_RGB;
     
 
