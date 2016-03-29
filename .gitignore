@@ -1,0 +1,11 @@
+*.mkv
+*.h264
+/libs
+obj
+*.app
+*/bin/*
+!*/bin/data
+*._*
+*2013*.jpg
+bin/ofxRPiCameraVideoGrabber
+bin/data/*.mp4
