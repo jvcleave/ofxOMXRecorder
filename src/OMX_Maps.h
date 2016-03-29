@@ -949,7 +949,16 @@ memset(&(a), 0, sizeof(a)); \
 
 //#define OMX_TRACE(error) ofLogVerbose(__func__) << __LINE__ << " " << omxErrorToString(error);
 
+#define DVD_TIME_BASE 1000000
+#define DVD_NOPTS_VALUE    (-1LL<<52) // should be possible to represent in both double and __int64
 
+#define DVD_TIME_TO_SEC(x)  ((int)((double)(x) / DVD_TIME_BASE))
+#define DVD_TIME_TO_MSEC(x) ((int)((double)(x) * 1000 / DVD_TIME_BASE))
+#define DVD_SEC_TO_TIME(x)  ((double)(x) * DVD_TIME_BASE)
+#define DVD_MSEC_TO_TIME(x) ((double)(x) * DVD_TIME_BASE / 1000)
+
+#define DVD_PLAYSPEED_PAUSE       0       // frame stepping
+#define DVD_PLAYSPEED_NORMAL      1000
 
 
 extern inline  
