@@ -32,9 +32,7 @@ public:
     ofxOMXRecorder();
     ~ofxOMXRecorder();
 
-    void setup(int width, int height, int colorFormat);
     void setup(ofxOMXRecorderSettings);
-    
     void update(unsigned char* pixels);
 
     void startRecording(string absoluteFilePath_="");
