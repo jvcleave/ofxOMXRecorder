@@ -16,7 +16,7 @@ void ofApp::setup(){
     
     int width = 1280;
     int height = 720;
-    colorFormat = GL_RGB;
+    colorFormat = GL_RGBA;
     
 
     
