@@ -60,11 +60,9 @@ private:
     bool stopRequested;
     ofBuffer recordingFileBuffer;
     string absoluteFilePath;
-    ofFbo* fbo;
     int frameCounter;
     
     bool startedRecording;
-    bool videoFileWritten;
     bool finishedRecording;
     
     void writeFile();
