@@ -104,7 +104,7 @@
 #
 #   Note: Leave a leading space when adding list items with the += operator
 ################################################################################
-PROJECT_CFLAGS = -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unused-function
+#PROJECT_CFLAGS = -Wno-unused-but-set-variable -Wno-unused-variable -Wno-unused-function -Wno-unknown-pragmas
 
 ################################################################################
 # PROJECT OPTIMIZATION CFLAGS

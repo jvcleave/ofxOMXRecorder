@@ -122,7 +122,6 @@ void ofxOMXRecorder::setup(ofxOMXRecorderSettings settings_)
     
         
     // Configure encoder output buffer
-   
     OMX_INIT_STRUCTURE(outputPortDefinition);
     outputPortDefinition.nPortIndex = VIDEO_ENCODE_OUTPUT_PORT;
     error =OMX_GetParameter(encoder, OMX_IndexParamPortDefinition, &outputPortDefinition);
@@ -163,6 +162,18 @@ void ofxOMXRecorder::setup(ofxOMXRecorderSettings settings_)
     error = OMX_SetParameter(encoder, OMX_IndexParamVideoPortFormat, &encodingFormat);
     OMX_TRACE(error);
 
+    
+    OMX_PARAM_U32TYPE keyFrameIntervalConfig;
+    OMX_INIT_STRUCTURE(keyFrameIntervalConfig);
+    keyFrameIntervalConfig.nPortIndex = VIDEO_ENCODE_OUTPUT_PORT;
+    error = OMX_GetParameter(encoder, OMX_IndexConfigBrcmVideoIntraPeriod, &keyFrameIntervalConfig);
+    OMX_TRACE(error);
+    ofLogVerbose(__func__) << "keyFrameIntervalConfig.nU32: " << keyFrameIntervalConfig.nU32;
+    keyFrameIntervalConfig.nU32 = settings.keyFrameInterval;
+    error = OMX_SetParameter(encoder, OMX_IndexConfigBrcmVideoIntraPeriod, &keyFrameIntervalConfig);
+    OMX_TRACE(error);
+
+    
     //Set encoder to Idle
     error = OMX_SendCommand(encoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
     OMX_TRACE(error);
@@ -274,6 +285,7 @@ void ofxOMXRecorder::onFillBuffer()
         ofLogVerbose(__func__) << frameCounter << " IS KEYFRAME";
         
     }
+
     if (stopRequested && (isKeyFrame ^ (outputBuffer->nFlags & OMX_BUFFERFLAG_SYNCFRAME))) 
     {
         OMX_ERRORTYPE error = OMX_SendCommand(encoder, OMX_CommandStateSet, OMX_StateIdle, NULL);

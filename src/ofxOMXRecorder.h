@@ -12,7 +12,9 @@ public:
     int colorFormat;
     int fps;
     float bitrateMegabytesPerSecond;
+    int keyFrameInterval;
     bool enablePrettyFileName;
+    
     ofxOMXRecorderSettings()
     {
         width = 1280;
@@ -20,6 +22,7 @@ public:
         colorFormat = GL_RGBA;
         fps = 30;
         bitrateMegabytesPerSecond = 2.0;
+        keyFrameInterval = 60;
         enablePrettyFileName = true;
     };
 };
