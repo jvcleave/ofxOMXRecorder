@@ -1325,6 +1325,69 @@ EnablePortBuffers(OMX_HANDLETYPE handle, OMX_BUFFERHEADERTYPE** targetBuffer, in
 }
 
 static
+void 
+EnablePortBuffers(OMX_HANDLETYPE handle, OMX_PARAM_PORTDEFINITIONTYPE& portdef, OMX_BUFFERHEADERTYPE** targetBuffer, int portIndex)
+{
+    OMX_ERRORTYPE error = OMX_ErrorNone;
+    
+    OMX_BUFFERHEADERTYPE* list = NULL;
+    OMX_BUFFERHEADERTYPE** end = &list;
+    
+    
+    if( portdef.bEnabled != OMX_FALSE)
+    {
+        ofLogError(__func__) << "buffer requirements bEnabled" << portdef.bEnabled;
+    }
+    if( portdef.nBufferCountActual == 0)
+    {
+        ofLogError(__func__) << "buffer requirements nBufferCountActual" << portdef.nBufferCountActual;
+    }
+    
+    if( portdef.nBufferSize == 0)
+    {
+        ofLogError(__func__) << "buffer requirements nBufferSize" << portdef.nBufferSize;
+    }
+    
+    // check component is in the right state to accept buffers
+    OMX_STATETYPE state;
+    error = OMX_GetState(handle, &state);
+    OMX_TRACE(error);
+    if (!(state == OMX_StateIdle || state == OMX_StateExecuting || state == OMX_StatePause)) 
+    {
+        ofLogError(__func__) << "Incorrect state: " << GetOMXStateString(state);
+    }
+    
+    // enable the port
+    error = OMX_SendCommand(handle, OMX_CommandPortEnable, portIndex, NULL);
+    OMX_TRACE(error);
+    
+    for (size_t i=0; i != portdef.nBufferCountActual; i++)
+    {
+        unsigned char *buf;
+        buf = (unsigned char *)vcos_malloc_aligned(portdef.nBufferSize, portdef.nBufferAlignment, "whatever");
+        
+        
+        if(!buf)
+        {
+            ofLogError(__func__) << "no buf";
+            break;
+        }
+        
+        error = OMX_UseBuffer(handle, end, portIndex, NULL, portdef.nBufferSize, buf);
+        OMX_TRACE(error);
+        if(error != OMX_ErrorNone)
+        {
+            vcos_free(buf);
+        }
+        end = (OMX_BUFFERHEADERTYPE **) &((*end)->pAppPrivate);
+    }
+    
+    *targetBuffer = list;
+    
+}
+
+
+static
 void ProbeCompression(OMX_HANDLETYPE handle, int port)
 {
     OMX_IMAGE_PARAM_PORTFORMATTYPE imageEncodingType;
@@ -1366,6 +1429,28 @@ void ProbeImageEncoding(OMX_HANDLETYPE handle, int port)
     info << "imageEncodingType eCompressionFormat: " << GetImageCodingString(imageEncodingType.eCompressionFormat) << endl;
     info << "imageEncodingType eColorFormat: " << GetColorFormatString(imageEncodingType.eColorFormat) << endl;
     ofLogVerbose(__func__) << info.str();
+}
+
+static
+void ProbeImageColorFormats(OMX_HANDLETYPE handle,
+                            OMX_PARAM_PORTDEFINITIONTYPE portdef)
+{
+    
+    
+    for (size_t i = 0; OMX_Maps::getInstance().getColorFormatNames().size(); i++) 
+    {
+        string name = OMX_Maps::getInstance().getColorFormatNames()[i];
+        OMX_COLOR_FORMATTYPE colorFormat = GetColorFormat(name);
+        portdef.format.image.eColorFormat = colorFormat;
+        OMX_ERRORTYPE error =OMX_SetParameter(handle, OMX_IndexParamPortDefinition, &portdef);
+        if (error == OMX_ErrorNone)
+        {
+            ofLogVerbose(__func__) << "COLOR NAME: " << name << " PASS";
+        }else
+        {
+            //ofLogVerbose(__func__) << "COLOR NAME: " << name << " FAIL";
+        }
+    }
 }
 
 static

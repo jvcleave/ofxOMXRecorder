@@ -57,7 +57,7 @@ public:
     ~ofxOMXImageEncoder();
     void setup(ofxOMXImageEncoderSettings);
     void encode(string filePath_, unsigned char* pixels);
-
+    OMX_IMAGE_CODINGTYPE codingType;
     bool isAvailable()
     {
         return available;
@@ -65,7 +65,7 @@ public:
     void close();
     
 private:
-    void checkPorts();
+    void checkPorts(bool doBuffers=true);
     void resetValues();
     void teardown();
     ofxOMXImageEncoderSettings settings;
@@ -96,7 +96,6 @@ private:
     void onEncoderPortSettingsChanged();
     void onEncoderEmptyBuffer();
     void onEncoderFillBuffer();
-    
     int pixelSize;
     ofBuffer fileBuffer;
     string filePath;
