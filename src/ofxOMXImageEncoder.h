@@ -70,6 +70,7 @@ private:
     void teardown();
     ofxOMXImageEncoderSettings settings;
     OMX_HANDLETYPE encoder;
+	OMX_PARAM_PORTDEFINITIONTYPE encoderOutputPortDefinition;
 
     OMX_BUFFERHEADERTYPE* inputBuffer;
     OMX_BUFFERHEADERTYPE* outputBuffer;
@@ -102,4 +103,6 @@ private:
     bool available;
     bool fileNeedsWritten;
     int startTime;
+    vector<OMX_IMAGE_CODINGTYPE> workingCodeTypes;
+    void probeEncoder();
 };

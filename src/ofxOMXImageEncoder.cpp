@@ -7,10 +7,31 @@
 
 ofxOMXImageEncoder::ofxOMXImageEncoder()
 {
+    workingCodeTypes.push_back(OMX_IMAGE_CodingBMP);
+    workingCodeTypes.push_back(OMX_IMAGE_CodingGIF);
+    workingCodeTypes.push_back(OMX_IMAGE_CodingPPM);
+    workingCodeTypes.push_back(OMX_IMAGE_CodingTGA);
+    workingCodeTypes.push_back(OMX_IMAGE_CodingJPEG);
+    workingCodeTypes.push_back(OMX_IMAGE_CodingPNG);
     resetValues();
 }
 
-
+void ofxOMXImageEncoder::probeEncoder()
+{
+    OMX_ERRORTYPE error = OMX_ErrorNone;
+    for (size_t i=0; i<workingCodeTypes.size(); i++)
+    {
+        encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatUnused;
+        encoderOutputPortDefinition.format.image.eCompressionFormat = workingCodeTypes[i];
+        error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
+         OMX_TRACE(error);
+        if (error == OMX_ErrorNone) 
+        {
+            ofLogVerbose() << GetImageCodingString(workingCodeTypes[i]);
+            ProbeImageColorFormats(encoder, encoderOutputPortDefinition);
+        }
+    }
+}
 
 #pragma mark SETUP
 void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
@@ -19,7 +40,8 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     OMX_ERRORTYPE error = OMX_ErrorNone;
     error = OMX_Init();
     OMX_TRACE(error);
-    
+
+
 /*
     OMX_IMAGE_CodingBMP
     OMX_IMAGE_CodingGIF
@@ -51,26 +73,25 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     inputPortDefinition.format.image.nFrameWidth    =   settings.width;
     inputPortDefinition.format.image.nFrameHeight   =   settings.height;
     inputPortDefinition.format.image.nSliceHeight   =   inputPortDefinition.format.image.nFrameHeight;
-    inputPortDefinition.format.image.nStride        =   inputPortDefinition.format.image.nFrameWidth;
-    //inputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;
+    //Stride is byte-per-pixel*width
+    //See mmal/util/mmal_util.c, mmal_encoding_width_to_stride()
     
-    pixelSize = settings.width * settings.height * 4;
-    unsigned char* pixels = new unsigned char[pixelSize];
     if (settings.colorFormat == GL_RGB) 
     {
-        //pixelSize = settings.width * settings.height * 3;
+        pixelSize = settings.width * settings.height * 3;
+        inputPortDefinition.format.image.nStride =   settings.width*3;
         inputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
     }
     if (settings.colorFormat == GL_RGBA) 
     {
-        //pixelSize = settings.width * settings.height * 4;
+        pixelSize = settings.width * settings.height * 4;
+        inputPortDefinition.format.image.nStride =   settings.width*4;
         inputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format32bitABGR8888;
     }
-
+    
     error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &inputPortDefinition);
     OMX_TRACE(error);
     
-    OMX_PARAM_PORTDEFINITIONTYPE encoderOutputPortDefinition;
     OMX_INIT_STRUCTURE(encoderOutputPortDefinition);
     encoderOutputPortDefinition.nPortIndex = IMAGE_ENCODER_OUTPUT_PORT;
     
@@ -90,18 +111,40 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
     OMX_TRACE(error);
     
+    //probeEncoder();
+    
     switch (codingType)
     {
-
+/*
+        BMP
+        24bitBGR888
+        
+        GIF
+        8bitPalette
+        
+        PPM
+        24bitBGR888
+        
+        TGA
+        24bitBGR888
+        32bitABGR8888
+        32bitARGB8888
+        
+        JPEG
+        CbYCrY
+        CrYCbY
+        YCbYCr
+        YCrYCb
+        YUV420PackedPlanar
+        YUV422PackedPlanar
+        
+        PNG
+        24bitBGR888
+        32bitABGR8888
+        32bitARGB8888 
+*/
         case OMX_IMAGE_CodingPNG:
         {
-            /*
-             OMX_IMAGE_CodingPNG
-                 24bitBGR888
-                 32bitABGR8888
-                 32bitARGB8888
-                 Unused
-             */
             if (settings.colorFormat == GL_RGB) 
             {
                 encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
@@ -118,25 +161,15 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
         case OMX_IMAGE_CodingJPEG:
         {
             /*
-             OMX_IMAGE_CodingJPEG
-                 Unused
-                 YCbYCr
-                 YCrYCb
-                 CrYCbY
-                 CbYCrY
-                 YUV422PackedPlanar
-                 YUV420PackedPlanar
-                 YUV422PackedPlanar 
-             */
             if (settings.colorFormat == GL_RGB) 
             {
-                encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatCrYCbY;
+                encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatYUV422PackedPlanar;
             }
             if (settings.colorFormat == GL_RGBA) 
             {
-                encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatCrYCbY;
+                encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatYUV422PackedPlanar;
             }
-            
+            */
             error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
             OMX_TRACE(error);
             
@@ -151,6 +184,35 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
             error =OMX_SetParameter(encoder, OMX_IndexParamQFactor, &compressionConfig);
             OMX_TRACE(error); 
             
+            break;
+        }
+        case OMX_IMAGE_CodingBMP:
+        {
+            encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
+            break;
+        }
+            
+        case OMX_IMAGE_CodingGIF:
+        {
+            encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format8bitPalette;
+            break;
+        }
+        case OMX_IMAGE_CodingPPM:
+        {
+            encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
+            break;
+        }
+            
+        case OMX_IMAGE_CodingTGA:
+        {
+            if (settings.colorFormat == GL_RGB) 
+            {
+                encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
+            }
+            if (settings.colorFormat == GL_RGBA) 
+            {
+                encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format32bitABGR8888;
+            }
             break;
         }    
         default:
@@ -182,7 +244,6 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     OMX_SendCommand(encoder, OMX_CommandStateSet, OMX_StateExecuting, NULL);
     OMX_TRACE(error);
     
-    inputBuffer->pBuffer = pixels;
     available = true;
 
 }
@@ -195,93 +256,14 @@ void ofxOMXImageEncoder::encode(string filePath_, unsigned char* pixels)
     available = false;
     startTime = ofGetElapsedTimeMillis();
     filePath = filePath_;
-    if (codingType == OMX_IMAGE_CodingJPEG) 
-    {
-        
-        
-        for (size_t i=0; i<pixelSize; i++) 
-        {
-            //int randomNumber = ofRandom(255);
-            inputBuffer->pBuffer[i]     =	255;
-            inputBuffer->pBuffer[i+1]   =	255;
-            inputBuffer->pBuffer[i+2]   =	255;
-            inputBuffer->pBuffer[i+3]   =	255;
-        }
-        #if 0       
-        for (int i=0; i<settings.width; i++) 
-        { 
-            for (int j=0; j<settings.height; j++)
-            {
-                int pos = (j * settings.width + i);
-                
-                
-                inputBuffer->pBuffer[pos * 4]   =	ofRandom(255);
-                inputBuffer->pBuffer[pos * 4+1] =	ofRandom(255);
-                inputBuffer->pBuffer[pos * 4+2] =	ofRandom(255);
-                inputBuffer->pBuffer[pos * 4+3] =   255;
-                
-                #if 0                
-                inputBuffer->pBuffer[pos * 4]   =	pixels[pos * 3];
-                inputBuffer->pBuffer[pos * 4+1] =	pixels[pos * 3+1];
-                inputBuffer->pBuffer[pos * 4+2] =	pixels[pos * 3+2];
-                inputBuffer->pBuffer[pos * 4+3] =   255;
-                #endif
-                
-                #if 0              
-                unsigned char& R = pixels[pos * 3];
-                unsigned char& G = pixels[pos * 3+1];
-                unsigned char& B = pixels[pos * 3+2];
-                
-                unsigned char Y;
-                unsigned char U;
-                unsigned char V;
-                unsigned char Cr;
-                unsigned char Cb;
-                /*
-                Y  = (0.257 * R) + (0.504 * G) + (0.098 * B) + 16;
-                Cr = V =  (0.439 * R) - (0.368 * G) - (0.071 * B) + 128;
-                Cb = U = -(0.148 * R) - (0.291 * G) + (0.439 * B) + 128;
-                */
-                
-                Y = (0.299*R) + (0.587*G) + (0.114*B);
-                Cr = (0.500*R) - (0.419*G ) - (0.081*B);
-                Cb = (-0.169*R)- (0.331*G )+ (0.500*B);
-                
-                //YCrYCb
-                /*
-                inputBuffer->pBuffer[pos * 4]   =	Y;
-                inputBuffer->pBuffer[pos * 4+1] =	Cr;
-                inputBuffer->pBuffer[pos * 4+2] =	Y;
-                inputBuffer->pBuffer[pos * 4+3] =   Cb;
-                */
-                //YCbYCr
-                inputBuffer->pBuffer[pos * 4]   =	Y;
-                inputBuffer->pBuffer[pos * 4+1] =	Y;
-                inputBuffer->pBuffer[pos * 4+2] =	Y;
-                inputBuffer->pBuffer[pos * 4+3] =   Y;
-                #endif                
-                
-              
-                
-                
-            }	
-        }
-        #endif
-    }else
-    {
-        inputBuffer->pBuffer = pixels;
-    }
-    
-    
-    
-    //
-    inputBuffer->nFilledLen = pixelSize;
-
+	inputBuffer->pBuffer = pixels;
+	inputBuffer->nFilledLen = pixelSize;
+	
    //checkPorts(); 
     
     OMX_ERRORTYPE error = OMX_EmptyThisBuffer(encoder, inputBuffer);
     OMX_TRACE(error);
-    
+
     error = OMX_FillThisBuffer(encoder, outputBuffer);
     OMX_TRACE(error);
 }

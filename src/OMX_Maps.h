@@ -1437,7 +1437,7 @@ void ProbeImageColorFormats(OMX_HANDLETYPE handle,
 {
     
     
-    for (size_t i = 0; OMX_Maps::getInstance().getColorFormatNames().size(); i++) 
+    for (size_t i = 0; i<OMX_Maps::getInstance().getColorFormatNames().size(); i++) 
     {
         string name = OMX_Maps::getInstance().getColorFormatNames()[i];
         OMX_COLOR_FORMATTYPE colorFormat = GetColorFormat(name);
