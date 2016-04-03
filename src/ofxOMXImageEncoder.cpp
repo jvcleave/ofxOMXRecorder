@@ -1,14 +1,37 @@
 #include "ofxOMXImageEncoder.h"
 
+#define LOG_LINE ofLogVerbose(__func__) << __LINE__ << endl;
 
-
+#define PORT_CHECK_NO_BUFFER(...) LOG_LINE checkPorts(false); 
+#define PORT_CHECK(...) LOG_LINE checkPorts(); 
 
 ofxOMXImageEncoder::ofxOMXImageEncoder()
 {
+    workingCodeTypes.push_back(OMX_IMAGE_CodingBMP);
+    workingCodeTypes.push_back(OMX_IMAGE_CodingGIF);
+    workingCodeTypes.push_back(OMX_IMAGE_CodingPPM);
+    workingCodeTypes.push_back(OMX_IMAGE_CodingTGA);
+    workingCodeTypes.push_back(OMX_IMAGE_CodingJPEG);
+    workingCodeTypes.push_back(OMX_IMAGE_CodingPNG);
     resetValues();
 }
 
-
+void ofxOMXImageEncoder::probeEncoder()
+{
+    OMX_ERRORTYPE error = OMX_ErrorNone;
+    for (size_t i=0; i<workingCodeTypes.size(); i++)
+    {
+        encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatUnused;
+        encoderOutputPortDefinition.format.image.eCompressionFormat = workingCodeTypes[i];
+        error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
+         OMX_TRACE(error);
+        if (error == OMX_ErrorNone) 
+        {
+            ofLogVerbose() << GetImageCodingString(workingCodeTypes[i]);
+            ProbeImageColorFormats(encoder, encoderOutputPortDefinition);
+        }
+    }
+}
 
 #pragma mark SETUP
 void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
@@ -17,7 +40,17 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     OMX_ERRORTYPE error = OMX_ErrorNone;
     error = OMX_Init();
     OMX_TRACE(error);
-    
+
+
+/*
+    OMX_IMAGE_CodingBMP
+    OMX_IMAGE_CodingGIF
+    OMX_IMAGE_CodingPPM
+    OMX_IMAGE_CodingTGA
+    OMX_IMAGE_CodingJPEG
+    OMX_IMAGE_CodingPNG
+*/ 
+    codingType = (OMX_IMAGE_CODINGTYPE)settings.imageType;
     
     OMX_CALLBACKTYPE encoderCallbacks;
     encoderCallbacks.EventHandler		= &ofxOMXImageEncoder::encoderEventHandlerCallback;
@@ -40,23 +73,25 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     inputPortDefinition.format.image.nFrameWidth    =   settings.width;
     inputPortDefinition.format.image.nFrameHeight   =   settings.height;
     inputPortDefinition.format.image.nSliceHeight   =   inputPortDefinition.format.image.nFrameHeight;
-    inputPortDefinition.format.image.nStride        =   inputPortDefinition.format.image.nFrameWidth;
-    //inputPortDefinition.format.video.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;
+    //Stride is byte-per-pixel*width
+    //See mmal/util/mmal_util.c, mmal_encoding_width_to_stride()
+    
     if (settings.colorFormat == GL_RGB) 
     {
         pixelSize = settings.width * settings.height * 3;
+        inputPortDefinition.format.image.nStride =   settings.width*3;
         inputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
     }
     if (settings.colorFormat == GL_RGBA) 
     {
         pixelSize = settings.width * settings.height * 4;
+        inputPortDefinition.format.image.nStride =   settings.width*4;
         inputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format32bitABGR8888;
     }
-
+    
     error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &inputPortDefinition);
     OMX_TRACE(error);
     
-    OMX_PARAM_PORTDEFINITIONTYPE encoderOutputPortDefinition;
     OMX_INIT_STRUCTURE(encoderOutputPortDefinition);
     encoderOutputPortDefinition.nPortIndex = IMAGE_ENCODER_OUTPUT_PORT;
     
@@ -69,15 +104,45 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     encoderOutputPortDefinition.format.image.nFrameHeight   =   settings.height;
     encoderOutputPortDefinition.format.image.nSliceHeight   =   encoderOutputPortDefinition.format.image.nFrameHeight;
     encoderOutputPortDefinition.format.image.nStride        =   encoderOutputPortDefinition.format.image.nFrameWidth;
-    //has to be set first or will automatically go to GIF?
-    encoderOutputPortDefinition.format.image.eColorFormat       = OMX_COLOR_FormatUnused;
-    encoderOutputPortDefinition.format.image.eCompressionFormat = (OMX_IMAGE_CODINGTYPE)settings.imageType;
+    //has to be set OMX_COLOR_FormatUnused first or will automatically go to GIF/8bit?
+    encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatUnused;
+    encoderOutputPortDefinition.format.image.eCompressionFormat = codingType;
     
     error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
     OMX_TRACE(error);
     
-    switch (encoderOutputPortDefinition.format.image.eCompressionFormat)
+    //probeEncoder();
+    
+    switch (codingType)
     {
+/*
+        BMP
+        24bitBGR888
+        
+        GIF
+        8bitPalette
+        
+        PPM
+        24bitBGR888
+        
+        TGA
+        24bitBGR888
+        32bitABGR8888
+        32bitARGB8888
+        
+        JPEG
+        CbYCrY
+        CrYCbY
+        YCbYCr
+        YCrYCb
+        YUV420PackedPlanar
+        YUV422PackedPlanar
+        
+        PNG
+        24bitBGR888
+        32bitABGR8888
+        32bitARGB8888 
+*/
         case OMX_IMAGE_CodingPNG:
         {
             if (settings.colorFormat == GL_RGB) 
@@ -95,6 +160,16 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
         }
         case OMX_IMAGE_CodingJPEG:
         {
+            /*
+            if (settings.colorFormat == GL_RGB) 
+            {
+                encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatYUV422PackedPlanar;
+            }
+            if (settings.colorFormat == GL_RGBA) 
+            {
+                encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatYUV422PackedPlanar;
+            }
+            */
             error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
             OMX_TRACE(error);
             
@@ -110,6 +185,35 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
             OMX_TRACE(error); 
             
             break;
+        }
+        case OMX_IMAGE_CodingBMP:
+        {
+            encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
+            break;
+        }
+            
+        case OMX_IMAGE_CodingGIF:
+        {
+            encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format8bitPalette;
+            break;
+        }
+        case OMX_IMAGE_CodingPPM:
+        {
+            encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
+            break;
+        }
+            
+        case OMX_IMAGE_CodingTGA:
+        {
+            if (settings.colorFormat == GL_RGB) 
+            {
+                encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
+            }
+            if (settings.colorFormat == GL_RGBA) 
+            {
+                encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format32bitABGR8888;
+            }
+            break;
         }    
         default:
         {
@@ -119,36 +223,18 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
         }
     }
 
+    PORT_CHECK_NO_BUFFER();
     
-
- 
-    /*
-    OMX_IMAGE_CodingPNG
-        24bitBGR888
-        32bitABGR8888
-        32bitARGB8888
-        Unused
-    */
-    /*
-     OMX_IMAGE_CodingBMP
-    OMX_IMAGE_CodingGIF
-    OMX_IMAGE_CodingPPM
-    OMX_IMAGE_CodingTGA
-    OMX_IMAGE_CodingJPEG
-    OMX_IMAGE_CodingPNG
-    
-    */
-    //Allocate buffers
     //Set encoder to Idle
     error = OMX_SendCommand(encoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
-    OMX_TRACE(error);
-    
-   
+
+    //Allocate buffers
     EnablePortBuffers(encoder, &inputBuffer, IMAGE_ENCODER_INPUT_PORT);
     EnablePortBuffers(encoder, &outputBuffer, IMAGE_ENCODER_OUTPUT_PORT);
-
-    //checkPorts();
     
+    PORT_CHECK();
+    
+
     error = OMX_SendCommand(encoder, OMX_CommandPortEnable, IMAGE_ENCODER_INPUT_PORT, NULL);
     OMX_TRACE(error);
     
@@ -170,14 +256,14 @@ void ofxOMXImageEncoder::encode(string filePath_, unsigned char* pixels)
     available = false;
     startTime = ofGetElapsedTimeMillis();
     filePath = filePath_;
-    inputBuffer->pBuffer = pixels;
-    inputBuffer->nFilledLen = pixelSize;
-
+	inputBuffer->pBuffer = pixels;
+	inputBuffer->nFilledLen = pixelSize;
+	
    //checkPorts(); 
     
     OMX_ERRORTYPE error = OMX_EmptyThisBuffer(encoder, inputBuffer);
     OMX_TRACE(error);
-    
+
     error = OMX_FillThisBuffer(encoder, outputBuffer);
     OMX_TRACE(error);
 }
@@ -292,14 +378,14 @@ ofxOMXImageEncoder::encoderEventHandlerCallback(OMX_HANDLETYPE hComponent,
     }
     if (event == OMX_EventPortSettingsChanged) 
     {
-        //imageDecoder->onEncoderPortSettingsChanged();
+        imageDecoder->onEncoderPortSettingsChanged();
     }
     return OMX_ErrorNone;
 };
 
 void ofxOMXImageEncoder::onEncoderPortSettingsChanged()
 {
-    //ofLogVerbose(__func__) << "";
+    ofLogVerbose(__func__) << "";
 }
 
 OMX_ERRORTYPE 
@@ -332,7 +418,7 @@ ofxOMXImageEncoder::encoderFillBufferDone(OMX_HANDLETYPE hComponent,
 }
 
 #pragma mark DEBUG
-void ofxOMXImageEncoder::checkPorts()
+void ofxOMXImageEncoder::checkPorts(bool doBuffers)
 {
     OMX_PARAM_PORTDEFINITIONTYPE input;
     OMX_INIT_STRUCTURE(input);
@@ -347,10 +433,16 @@ void ofxOMXImageEncoder::checkPorts()
     error =OMX_GetParameter(encoder, OMX_IndexParamPortDefinition, &output);
     OMX_TRACE(error);
     
-    
-    ofLogVerbose(__func__) << "inputBuffer: " << GetBufferHeaderString(inputBuffer);
+    if (doBuffers) 
+    {
+        ofLogVerbose(__func__) << "inputBuffer: " << GetBufferHeaderString(inputBuffer);
+
+    }
     ofLogVerbose(__func__) << "inputPortDefinition: " << GetPortDefinitionString(input);
     
-    ofLogVerbose(__func__) << "outputBuffer: " << GetBufferHeaderString(outputBuffer);
+    if (doBuffers) 
+    {
+        ofLogVerbose(__func__) << "outputBuffer: " << GetBufferHeaderString(outputBuffer);
+    }
     ofLogVerbose(__func__) << "encoderOutputPortDefinition: " << GetPortDefinitionString(output);  
 }

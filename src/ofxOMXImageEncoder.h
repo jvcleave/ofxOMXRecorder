@@ -57,7 +57,7 @@ public:
     ~ofxOMXImageEncoder();
     void setup(ofxOMXImageEncoderSettings);
     void encode(string filePath_, unsigned char* pixels);
-
+    OMX_IMAGE_CODINGTYPE codingType;
     bool isAvailable()
     {
         return available;
@@ -65,11 +65,12 @@ public:
     void close();
     
 private:
-    void checkPorts();
+    void checkPorts(bool doBuffers=true);
     void resetValues();
     void teardown();
     ofxOMXImageEncoderSettings settings;
     OMX_HANDLETYPE encoder;
+	OMX_PARAM_PORTDEFINITIONTYPE encoderOutputPortDefinition;
 
     OMX_BUFFERHEADERTYPE* inputBuffer;
     OMX_BUFFERHEADERTYPE* outputBuffer;
@@ -96,11 +97,12 @@ private:
     void onEncoderPortSettingsChanged();
     void onEncoderEmptyBuffer();
     void onEncoderFillBuffer();
-    
     int pixelSize;
     ofBuffer fileBuffer;
     string filePath;
     bool available;
     bool fileNeedsWritten;
     int startTime;
+    vector<OMX_IMAGE_CODINGTYPE> workingCodeTypes;
+    void probeEncoder();
 };
