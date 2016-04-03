@@ -9,5 +9,5 @@ obj
 *2013*.jpg
 bin/ofxRPiCameraVideoGrabber
 bin/data/*.mp4
-example-image/bin/data/savedImages
-example-image/bin/data/OF_SAVE.png
+example-*/bin/data/savedImages
+example-*/bin/data/OF_SAVE.png

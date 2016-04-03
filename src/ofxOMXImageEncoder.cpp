@@ -276,6 +276,7 @@ void ofxOMXImageEncoder::close()
     OMX_ERRORTYPE error = OMX_SendCommand(encoder, OMX_CommandStateSet, OMX_StateIdle, NULL);
     OMX_TRACE(error);
     teardown();
+    
 }
 
 void ofxOMXImageEncoder::resetValues()
