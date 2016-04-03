@@ -37,6 +37,7 @@ void ofxOMXImageEncoder::probeEncoder()
 void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
 {
     settings = settings_;
+    settings.validate();
     OMX_ERRORTYPE error = OMX_ErrorNone;
     error = OMX_Init();
     OMX_TRACE(error);
@@ -73,21 +74,28 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     inputPortDefinition.format.image.nFrameWidth    =   settings.width;
     inputPortDefinition.format.image.nFrameHeight   =   settings.height;
     inputPortDefinition.format.image.nSliceHeight   =   inputPortDefinition.format.image.nFrameHeight;
-    //Stride is byte-per-pixel*width
-    //See mmal/util/mmal_util.c, mmal_encoding_width_to_stride()
+ 
     
+    int numColors = 0;
     if (settings.colorFormat == GL_RGB) 
     {
-        pixelSize = settings.width * settings.height * 3;
-        inputPortDefinition.format.image.nStride =   settings.width*3;
+        numColors = 3;
         inputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
+
     }
     if (settings.colorFormat == GL_RGBA) 
     {
-        pixelSize = settings.width * settings.height * 4;
-        inputPortDefinition.format.image.nStride =   settings.width*4;
+        numColors = 4;
         inputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format32bitABGR8888;
     }
+    
+    pixelSize = settings.width * settings.height * numColors;
+    
+    //Stride is byte-per-pixel*width
+    //See mmal/util/mmal_util.c, mmal_encoding_width_to_stride()
+    int stride = settings.width * numColors;    
+    inputPortDefinition.format.image.nStride = stride;
+    
     
     error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &inputPortDefinition);
     OMX_TRACE(error);
@@ -100,10 +108,12 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     
     ofLogVerbose(__func__) << "encoderOutputPortDefinition: " << GetPortDefinitionString(encoderOutputPortDefinition); 
     
-    encoderOutputPortDefinition.format.image.nFrameWidth    =   settings.width;
-    encoderOutputPortDefinition.format.image.nFrameHeight   =   settings.height;
+    encoderOutputPortDefinition.format.image.nFrameWidth    =   settings.outputWidth;
+    encoderOutputPortDefinition.format.image.nFrameHeight   =   settings.outputHeight;
     encoderOutputPortDefinition.format.image.nSliceHeight   =   encoderOutputPortDefinition.format.image.nFrameHeight;
     encoderOutputPortDefinition.format.image.nStride        =   encoderOutputPortDefinition.format.image.nFrameWidth;
+    
+
     //has to be set OMX_COLOR_FormatUnused first or will automatically go to GIF/8bit?
     encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatUnused;
     encoderOutputPortDefinition.format.image.eCompressionFormat = codingType;
@@ -160,16 +170,6 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
         }
         case OMX_IMAGE_CodingJPEG:
         {
-            /*
-            if (settings.colorFormat == GL_RGB) 
-            {
-                encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatYUV422PackedPlanar;
-            }
-            if (settings.colorFormat == GL_RGBA) 
-            {
-                encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatYUV422PackedPlanar;
-            }
-            */
             error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
             OMX_TRACE(error);
             
@@ -188,7 +188,8 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
         }
         case OMX_IMAGE_CodingBMP:
         {
-            encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
+            //encoderOutputPortDefinition.format.image.nStride        = settings.outputWidth * 3;
+            //encoderOutputPortDefinition.format.image.eColorFormat   = OMX_COLOR_Format24bitBGR888;
             break;
         }
             
@@ -395,7 +396,7 @@ ofxOMXImageEncoder::encoderEmptyBufferDone(OMX_HANDLETYPE hComponent,
 {
     
     //never called for some reason
-    //ofLogVerbose(__func__) << "";
+    ofLogVerbose(__func__) << "";
     //ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
     return OMX_ErrorNone;
 }
@@ -411,7 +412,7 @@ ofxOMXImageEncoder::encoderFillBufferDone(OMX_HANDLETYPE hComponent,
                                                     OMX_PTR pAppData, 
                                                     OMX_BUFFERHEADERTYPE* pBuffer)
 {	
-    //ofLogVerbose(__func__) << "";
+    ofLogVerbose(__func__) << "";
     ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
     imageDecoder->onEncoderFillBuffer();
     return OMX_ErrorNone;

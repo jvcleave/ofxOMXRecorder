@@ -16,8 +16,8 @@ void ofApp::setup(){
     doEncode = false;
     int numColors = 0;
     
-    int width = 640;
-    int height = 480;
+    int width = 1280;
+    int height = 720;
     colorFormat = GL_RGBA;
     
 
@@ -36,29 +36,53 @@ void ofApp::setup(){
         ofClear(0);
         ofBackgroundGradient(ofColor::red, ofColor::black, OF_GRADIENT_BAR);
     fbo.end();
+
+/*
+    IMAGE_TYPE
+ 
+    Working formats:
+    GIF
+    PNG
+    JPG
     
-#if 0
-    ofxOMXImageEncoderSettings pngEncoderSettings;
-    pngEncoderSettings.width  = width;            //default 1280, max 1280
-    pngEncoderSettings.height = height;           //default 720, max 720
-    pngEncoderSettings.colorFormat = colorFormat; //default GL_RGBA or GL_RGB    
-    pngEncoderSettings.imageType = ofxOMXImageEncoderSettings::PNG;  
-    encoder.setup(pngEncoderSettings);
-#endif
+    Almost working:
+    BMP
     
-#if 1
-    ofxOMXImageEncoderSettings jpgEncoderSettings;
-    jpgEncoderSettings.width  = width;            //default 1280, max 1280
-    jpgEncoderSettings.height = height;           //default 720, max 720
-    jpgEncoderSettings.colorFormat = colorFormat; //default GL_RGBA or GL_RGB    
-    jpgEncoderSettings.imageType = ofxOMXImageEncoderSettings::JPG; 
-    jpgEncoderSettings.JPGCompressionLevel = 50;
-    encoder.setup(jpgEncoderSettings);
-#endif
+    Failing (but should work):
+    TGA
+    PPM
+    TGA
+*/
+    ofxOMXImageEncoderSettings::IMAGE_TYPE imageType = ofxOMXImageEncoderSettings::JPG;
+    
+    ofxOMXImageEncoderSettings encoderSettings;
+    encoderSettings.width       = width;        //default 1280, max 1280
+    encoderSettings.height      = height;       //default 720, max 720
+    encoderSettings.colorFormat = colorFormat;  //default GL_RGBA or GL_RGB    
+    encoderSettings.imageType   = imageType;
+    if (imageType == ofxOMXImageEncoderSettings::JPG)
+    {
+        encoderSettings.JPGCompressionLevel = 50; //0-100
+
+    }
+    //encoderSettings.outputWidth  = width/2;            //default 1280, max 1280
+    //encoderSettings.outputHeight = height/2;           //default 720, max 720
+    
+    encoder.setup(encoderSettings);
     
     imageCounter = 0;
-   
+    ofDirectory savedImagesFolder("savedImages");
+    if(!savedImagesFolder.exists())
+    {
+        savedImagesFolder.create();
+    }
     
+    string folderPath = ofToDataPath(savedImagesFolder.getAbsolutePath()+ "/" +encoderSettings.getImageTypeString(), true); //e.g. bin/data/savedImages/jpg
+    imagesFolder = ofDirectory(folderPath);
+    if(!imagesFolder.exists())
+    {
+        imagesFolder.create();
+    }
     
     int dataSize = width * height * numColors;
     pixels = new unsigned char[dataSize];
@@ -106,21 +130,11 @@ void ofApp::update()
     
     if(doEncode)
     {
-        string absoluteFilePath;
-        string folderPath = ofToDataPath("savedImages", true);
-        
-        ofDirectory imageFolder(folderPath);
-        
-        if(!imageFolder.exists())
-        {
-            imageFolder.create();
-        }
-        
+            
         if (encoder.isAvailable() && didUpdatePixels) 
         {
            
-            absoluteFilePath= imageFolder.getAbsolutePath() + "/" + ofToString(imageCounter);
-            encoder.encode(absoluteFilePath, pixels);
+            encoder.encode(imagesFolder.getAbsolutePath() + "/" + ofToString(imageCounter), pixels);
             imageCounter++;
         }
 
@@ -129,14 +143,13 @@ void ofApp::update()
         {
             doEncode = false;
             endTime = ofGetElapsedTimeMillis();
-            ofLogVerbose() << imageCounter << " IMAGES TOOK MS: " << endTime-startTime;
+            ofLogVerbose() << imageCounter << " IMAGES TOOK OMX MS: " << endTime-startTime;
+            
+            
+            //ofSaveImage for speed comparision
             
             int startTimeOF = ofGetElapsedTimeMillis();
-            stringstream filePath;
-            filePath << "savedImages/";
-            filePath << "OF_SAVE";
-            filePath << ".png";
-            ofSaveImage(pixelsOF, ofToDataPath(filePath.str(), true));
+            ofSaveImage(pixelsOF, ofToDataPath("OF_SAVE.png", true));
             ofLogVerbose() << "OF IMAGE TOOK MS: " << ofGetElapsedTimeMillis()-startTimeOF;
         }
         

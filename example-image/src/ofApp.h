@@ -24,12 +24,15 @@ public:
     ofTexture logo;
 
     ofxOMXImageEncoder encoder;
+
     GLint colorFormat;
     unsigned char* pixels;
     int imageCounter;
     
     bool doEncode;
     ofPixels pixelsOF;
+    
+    ofDirectory imagesFolder;
 };
 
 

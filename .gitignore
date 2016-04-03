@@ -10,3 +10,4 @@ obj
 bin/ofxRPiCameraVideoGrabber
 bin/data/*.mp4
 example-image/bin/data/savedImages
+example-image/bin/data/OF_SAVE.png

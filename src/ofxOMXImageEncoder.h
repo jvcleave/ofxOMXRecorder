@@ -22,6 +22,9 @@ public:
     bool enablePrettyFileName;
     IMAGE_TYPE imageType;
     int JPGCompressionLevel;
+    
+    int outputWidth;
+    int outputHeight;
     ofxOMXImageEncoderSettings()
     {
         width = 1280;
@@ -31,21 +34,41 @@ public:
         enablePrettyFileName = true;
         imageType = PNG;
         JPGCompressionLevel = 30;
+        outputWidth = width;
+        outputHeight = height;
+        
     };
-    
-    string getFileExtension()
+    void validate()
     {
-        string fileExt = "UNSET";
+        int currentOutputWidth = outputWidth;
+        int currentOutputHeight = outputHeight;
+        if (currentOutputWidth > width)
+        {
+            outputWidth = width;
+        }
+        
+        if (currentOutputHeight > height)
+        {
+            outputHeight = height;
+        }
+    }
+    string getImageTypeString()
+    {
+        string typeString = "UNSET";
         switch (imageType) 
         {
-            case BMP: fileExt = ".bmp"; break;
-            case GIF: fileExt = ".gif"; break;
-            case TGA: fileExt = ".tga"; break;
-            case PPM: fileExt = ".ppm"; break;
-            case JPG: fileExt = ".jpg"; break;
-            case PNG: fileExt = ".png"; break;
+            case BMP: typeString = "bmp"; break;
+            case GIF: typeString = "gif"; break;
+            case TGA: typeString = "tga"; break;
+            case PPM: typeString = "ppm"; break;
+            case JPG: typeString = "jpg"; break;
+            case PNG: typeString = "png"; break;
         }
-        return fileExt;
+        return typeString;
+    }
+    string getFileExtension()
+    {
+        return "." + getImageTypeString();
     }
 };
 
@@ -64,6 +87,10 @@ public:
     }
     void close();
     
+    ofxOMXImageEncoderSettings& getSettings()
+    {
+        return settings;
+    }
 private:
     void checkPorts(bool doBuffers=true);
     void resetValues();
