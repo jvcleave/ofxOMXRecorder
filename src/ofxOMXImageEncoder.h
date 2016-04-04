@@ -92,12 +92,13 @@ public:
         return settings;
     }
 private:
+    void setupWithResizer();
     void checkPorts(bool doBuffers=true);
     void resetValues();
     void teardown();
     ofxOMXImageEncoderSettings settings;
     OMX_HANDLETYPE encoder;
-
+    
     OMX_BUFFERHEADERTYPE* inputBuffer;
     OMX_BUFFERHEADERTYPE* outputBuffer;
 
@@ -109,6 +110,7 @@ private:
                                 OMX_EVENTTYPE, 
                                 OMX_U32, OMX_U32, 
                                 OMX_PTR);
+
     static OMX_ERRORTYPE 
     encoderEmptyBufferDone(OMX_HANDLETYPE, 
                            OMX_PTR, 
@@ -118,8 +120,27 @@ private:
     encoderFillBufferDone(OMX_HANDLETYPE,
                           OMX_PTR,
                           OMX_BUFFERHEADERTYPE*);
-   
     
+    //resizer
+    OMX_HANDLETYPE resizer;
+    static OMX_ERRORTYPE 
+    resizerEmptyBufferDone(OMX_HANDLETYPE, 
+                           OMX_PTR, 
+                           OMX_BUFFERHEADERTYPE*){ ofLogVerbose(__func__) <<  ""; return OMX_ErrorNone; };
+    
+    static OMX_ERRORTYPE
+    resizerFillBufferDone(OMX_HANDLETYPE,
+                          OMX_PTR,
+                          OMX_BUFFERHEADERTYPE*){ ofLogVerbose(__func__) <<  ""; return OMX_ErrorNone; };
+    
+    static OMX_ERRORTYPE 
+    resizerEventHandlerCallback(OMX_HANDLETYPE, 
+                                OMX_PTR, 
+                                OMX_EVENTTYPE, 
+                                OMX_U32, OMX_U32, 
+                                OMX_PTR);
+
+    void onResizerPortSettingsChanged();
     void onEncoderPortSettingsChanged();
     void onEncoderEmptyBuffer();
     void onEncoderFillBuffer();
