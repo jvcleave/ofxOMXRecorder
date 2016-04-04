@@ -19,6 +19,14 @@ ofxOMXImageEncoder::ofxOMXImageEncoder()
 void ofxOMXImageEncoder::probeEncoder()
 {
     OMX_ERRORTYPE error = OMX_ErrorNone;
+
+    OMX_PARAM_PORTDEFINITIONTYPE encoderOutputPortDefinition;
+    OMX_INIT_STRUCTURE(encoderOutputPortDefinition);
+    encoderOutputPortDefinition.nPortIndex = IMAGE_ENCODER_OUTPUT_PORT;
+    
+    error =OMX_GetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
+    OMX_TRACE(error);
+    
     for (size_t i=0; i<workingCodeTypes.size(); i++)
     {
         encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatUnused;
@@ -100,6 +108,7 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &inputPortDefinition);
     OMX_TRACE(error);
     
+    OMX_PARAM_PORTDEFINITIONTYPE encoderOutputPortDefinition;
     OMX_INIT_STRUCTURE(encoderOutputPortDefinition);
     encoderOutputPortDefinition.nPortIndex = IMAGE_ENCODER_OUTPUT_PORT;
     
@@ -108,6 +117,8 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     
     ofLogVerbose(__func__) << "encoderOutputPortDefinition: " << GetPortDefinitionString(encoderOutputPortDefinition); 
     
+    
+    encoderOutputPortDefinition.format.image.bFlagErrorConcealment = OMX_FALSE;
     encoderOutputPortDefinition.format.image.nFrameWidth    =   settings.outputWidth;
     encoderOutputPortDefinition.format.image.nFrameHeight   =   settings.outputHeight;
     encoderOutputPortDefinition.format.image.nSliceHeight   =   encoderOutputPortDefinition.format.image.nFrameHeight;

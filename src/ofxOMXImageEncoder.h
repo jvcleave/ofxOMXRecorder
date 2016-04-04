@@ -97,7 +97,6 @@ private:
     void teardown();
     ofxOMXImageEncoderSettings settings;
     OMX_HANDLETYPE encoder;
-	OMX_PARAM_PORTDEFINITIONTYPE encoderOutputPortDefinition;
 
     OMX_BUFFERHEADERTYPE* inputBuffer;
     OMX_BUFFERHEADERTYPE* outputBuffer;
