@@ -126,7 +126,7 @@ private:
     static OMX_ERRORTYPE 
     resizerEmptyBufferDone(OMX_HANDLETYPE, 
                            OMX_PTR, 
-                           OMX_BUFFERHEADERTYPE*){ ofLogVerbose(__func__) <<  ""; return OMX_ErrorNone; };
+                           OMX_BUFFERHEADERTYPE*);
     
     static OMX_ERRORTYPE
     resizerFillBufferDone(OMX_HANDLETYPE,
@@ -139,8 +139,9 @@ private:
                                 OMX_EVENTTYPE, 
                                 OMX_U32, OMX_U32, 
                                 OMX_PTR);
-
+    void onResizerEmptyBuffer();
     void onResizerPortSettingsChanged();
+    
     void onEncoderPortSettingsChanged();
     void onEncoderEmptyBuffer();
     void onEncoderFillBuffer();
