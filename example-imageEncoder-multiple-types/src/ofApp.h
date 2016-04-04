@@ -30,6 +30,7 @@ public:
     int imageCounter;
     
     bool doEncode;
+    bool doRestart;
     ofPixels pixelsOF;
     
     ofDirectory imagesFolder;

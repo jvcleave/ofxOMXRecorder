@@ -15,13 +15,14 @@ void ofApp::setup()
     
     
     doEncode = false;
+    doRestart=false;
     int numColors = 0;
     
     width = 1280;
     height = 720;
     colorFormat = GL_RGBA;
     
-
+    
     
     if (colorFormat == GL_RGB) 
     {
@@ -34,10 +35,10 @@ void ofApp::setup()
     }
     fbo.allocate(width, height, colorFormat);
     fbo.begin();
-        ofClear(0);
-        ofBackgroundGradient(ofColor::red, ofColor::black, OF_GRADIENT_BAR);
+    ofClear(0);
+    ofBackgroundGradient(ofColor::red, ofColor::black, OF_GRADIENT_BAR);
     fbo.end();
-
+    
     imageTypes.push_back(ofxOMXImageEncoderSettings::JPG);
     imageTypes.push_back(ofxOMXImageEncoderSettings::PNG);
     imageTypes.push_back(ofxOMXImageEncoderSettings::GIF);
@@ -45,11 +46,11 @@ void ofApp::setup()
     
     setupEncoder(0);
     
-
+    
     int dataSize = width * height * numColors;
     pixels = new unsigned char[dataSize];
     memset(pixels, 0xff, dataSize); //set to white
-
+    
     pixelsOF.setFromExternalPixels(pixels, width, height, numColors);
 }
 
@@ -61,7 +62,7 @@ void ofApp::setupEncoder(int id)
     currentEncoderID = id;
     ofxOMXImageEncoderSettings::IMAGE_TYPE imageType = imageTypes[currentEncoderID];
     
-
+    
     
     ofxOMXImageEncoderSettings encoderSettings;
     encoderSettings.width       = width;        //default 1280, max 1280
@@ -73,8 +74,8 @@ void ofApp::setupEncoder(int id)
         encoderSettings.JPGCompressionLevel = 50; //0-100
         
     }
-    //encoderSettings.outputWidth  = width/2;            //default 1280, max 1280
-    //encoderSettings.outputHeight = height/2;           //default 720, max 720
+    encoderSettings.outputWidth  = width/2;            
+    encoderSettings.outputHeight = height/2;           
     
     
     ofDirectory savedImagesFolder("savedImages");
@@ -98,54 +99,61 @@ void ofApp::update()
 {
     bool didUpdatePixels = false;
     fbo.begin();
-        logo.draw(ofRandom(0, fbo.getWidth()), ofRandom(0, fbo.getHeight()), 20, 20);
+    logo.draw(ofRandom(0, fbo.getWidth()), ofRandom(0, fbo.getHeight()), 20, 20);
     
-        int w = fbo.getWidth()/8;
-        int h = fbo.getHeight()/2;
-        int a = 255;
-        ofPushStyle();
-        ofPushMatrix();
+    int w = fbo.getWidth()/8;
+    int h = fbo.getHeight()/2;
+    int a = 255;
+    ofPushStyle();
+    ofPushMatrix();
     
-        ofTranslate(w, 0);
-        ofSetColor(ofColor::red);
-        ofDrawRectangle(0, 0, w, h);
-        
-        ofTranslate(w, 0);
-        ofSetColor(ofColor::blue, a * 0.75f);
-        ofDrawRectangle(0, 0, w, h);
-        
-        ofTranslate(w, 0);
-        ofSetColor(ofColor::green, a * 0.5f);
-        ofDrawRectangle(0, 0, w, h);
-        
-        ofTranslate(w, 0);
-        ofSetColor(ofColor::white, a * 0.25f);
-        ofDrawRectangle(0, 0, w, h);
+    ofTranslate(w, 0);
+    ofSetColor(ofColor::red);
+    ofDrawRectangle(0, 0, w, h);
     
-        ofPopMatrix();
-        ofPopStyle();
-        if (encoder.isAvailable()) 
-        {
-            didUpdatePixels = true;
-            glReadPixels(0,0, fbo.getWidth(), fbo.getHeight(), colorFormat, GL_UNSIGNED_BYTE, pixels);
-        }
+    ofTranslate(w, 0);
+    ofSetColor(ofColor::blue, a * 0.75f);
+    ofDrawRectangle(0, 0, w, h);
+    
+    ofTranslate(w, 0);
+    ofSetColor(ofColor::green, a * 0.5f);
+    ofDrawRectangle(0, 0, w, h);
+    
+    ofTranslate(w, 0);
+    ofSetColor(ofColor::white, a * 0.25f);
+    ofDrawRectangle(0, 0, w, h);
+    
+    ofPopMatrix();
+    ofPopStyle();
+    if (encoder.isAvailable()) 
+    {
+        didUpdatePixels = true;
+        glReadPixels(0,0, fbo.getWidth(), fbo.getHeight(), colorFormat, GL_UNSIGNED_BYTE, pixels);
+    }
     fbo.end();
     
     if(doEncode)
     {
-            
+        
         if (encoder.isAvailable() && didUpdatePixels) 
         {
-           
+            
             encoder.encode(imagesFolder.getAbsolutePath() + "/" + ofToString(imageCounter), pixels);
             imageCounter++;
         }
-
+        
         
         if(imageCounter == 10)
         {
             doEncode = false;
-            
+            doRestart = true;
+        }
+    }
+    if (doRestart)
+    {
+        if (encoder.isAvailable()) 
+        {
+            doRestart = false;
             endTime = ofGetElapsedTimeMillis();
             ofLogVerbose() << imageCounter << " IMAGES TOOK OMX MS: " << endTime-startTime;
             encoder.close();
@@ -167,12 +175,12 @@ void ofApp::update()
         }
         
     }
-
+    
 }
 
 void ofApp::draw()
 {
-
+    
     fbo.draw(0, 0);
     
     
@@ -185,7 +193,7 @@ void ofApp::draw()
 }
 
 void ofApp::keyPressed(int key){
-
+    
     if (key == '1') 
     {
         startTime = ofGetElapsedTimeMillis();
