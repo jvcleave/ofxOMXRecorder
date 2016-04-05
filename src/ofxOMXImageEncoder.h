@@ -92,7 +92,6 @@ public:
         return settings;
     }
 private:
-    void setupWithResizer();
     void checkPorts(bool doBuffers=true);
     void resetValues();
     void teardown();
