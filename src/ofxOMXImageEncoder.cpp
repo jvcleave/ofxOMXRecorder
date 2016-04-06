@@ -24,23 +24,23 @@ void ofxOMXImageEncoder::probeEncoder()
 {
     OMX_ERRORTYPE error = OMX_ErrorNone;
 
-    OMX_PARAM_PORTDEFINITIONTYPE encoderOutputPortDefinition;
-    OMX_INIT_STRUCTURE(encoderOutputPortDefinition);
-    encoderOutputPortDefinition.nPortIndex = IMAGE_ENCODER_OUTPUT_PORT;
+    OMX_PARAM_PORTDEFINITIONTYPE encoderOutputPort;
+    OMX_INIT_STRUCTURE(encoderOutputPort);
+    encoderOutputPort.nPortIndex = IMAGE_ENCODER_OUTPUT_PORT;
     
-    error =OMX_GetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
+    error =OMX_GetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPort);
     OMX_TRACE(error);
     
     for (size_t i=0; i<workingCodeTypes.size(); i++)
     {
-        encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatUnused;
-        encoderOutputPortDefinition.format.image.eCompressionFormat = workingCodeTypes[i];
-        error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
+        encoderOutputPort.format.image.eColorFormat = OMX_COLOR_FormatUnused;
+        encoderOutputPort.format.image.eCompressionFormat = workingCodeTypes[i];
+        error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPort);
          OMX_TRACE(error);
         if (error == OMX_ErrorNone) 
         {
             ofLogVerbose() << GetImageCodingString(workingCodeTypes[i]);
-            ProbeImageColorFormats(encoder, encoderOutputPortDefinition);
+            ProbeImageColorFormats(encoder, encoderOutputPort);
         }
     }
 }
@@ -226,52 +226,52 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     error = DisableAllPortsForComponent(&encoder);
     OMX_TRACE(error);
     
-    OMX_PARAM_PORTDEFINITIONTYPE inputPortDefinition;
-    OMX_INIT_STRUCTURE(inputPortDefinition);
-    inputPortDefinition.nPortIndex = IMAGE_ENCODER_INPUT_PORT;
+    OMX_PARAM_PORTDEFINITIONTYPE encoderInputPort;
+    OMX_INIT_STRUCTURE(encoderInputPort);
+    encoderInputPort.nPortIndex = IMAGE_ENCODER_INPUT_PORT;
     
-    error =OMX_GetParameter(encoder, OMX_IndexParamPortDefinition, &inputPortDefinition);
+    error =OMX_GetParameter(encoder, OMX_IndexParamPortDefinition, &encoderInputPort);
     OMX_TRACE(error);
     
-    inputPortDefinition.format.image.nFrameWidth    =   settings.width;
-    inputPortDefinition.format.image.nFrameHeight   =   settings.height;
-    inputPortDefinition.format.image.nSliceHeight   =   inputPortDefinition.format.image.nFrameHeight;
+    encoderInputPort.format.image.nFrameWidth    =   settings.width;
+    encoderInputPort.format.image.nFrameHeight   =   settings.height;
+    encoderInputPort.format.image.nSliceHeight   =   encoderInputPort.format.image.nFrameHeight;
     if (settings.colorFormat == GL_RGB) 
     {
-        inputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
+        encoderInputPort.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
         
     }
     if (settings.colorFormat == GL_RGBA) 
     {
-        inputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format32bitABGR8888;
+        encoderInputPort.format.image.eColorFormat = OMX_COLOR_Format32bitABGR8888;
     }
     
-    inputPortDefinition.format.image.nStride = stride;
+    encoderInputPort.format.image.nStride = stride;
     
     
-    error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &inputPortDefinition);
+    error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderInputPort);
     OMX_TRACE(error);
     
     
-    OMX_PARAM_PORTDEFINITIONTYPE encoderOutputPortDefinition;
-    OMX_INIT_STRUCTURE(encoderOutputPortDefinition);
-    encoderOutputPortDefinition.nPortIndex = IMAGE_ENCODER_OUTPUT_PORT;
+    OMX_PARAM_PORTDEFINITIONTYPE encoderOutputPort;
+    OMX_INIT_STRUCTURE(encoderOutputPort);
+    encoderOutputPort.nPortIndex = IMAGE_ENCODER_OUTPUT_PORT;
     
-    error =OMX_GetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
+    error =OMX_GetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPort);
     OMX_TRACE(error);
     
-    //ofLogVerbose(__func__) << "encoderOutputPortDefinition: " << GetPortDefinitionString(encoderOutputPortDefinition); 
+    //ofLogVerbose(__func__) << "encoderOutputPort: " << GetPortDefinitionString(encoderOutputPort); 
     
     
-    encoderOutputPortDefinition.format.image.bFlagErrorConcealment = OMX_FALSE;
+    encoderOutputPort.format.image.bFlagErrorConcealment = OMX_FALSE;
     
     
     
     //has to be set OMX_COLOR_FormatUnused first or will automatically go to GIF/8bit?
-    encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_FormatUnused;
-    encoderOutputPortDefinition.format.image.eCompressionFormat = codingType;
+    encoderOutputPort.format.image.eColorFormat = OMX_COLOR_FormatUnused;
+    encoderOutputPort.format.image.eCompressionFormat = codingType;
     
-    error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
+    error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPort);
     OMX_TRACE(error);
     
     switch (codingType)
@@ -280,20 +280,20 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
         {
             if (settings.colorFormat == GL_RGB) 
             {
-                encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
+                encoderOutputPort.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
             }
             if (settings.colorFormat == GL_RGBA) 
             {
-                encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format32bitABGR8888;
+                encoderOutputPort.format.image.eColorFormat = OMX_COLOR_Format32bitABGR8888;
             }
-            error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
+            error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPort);
             OMX_TRACE(error);
             
             break;
         }
         case OMX_IMAGE_CodingJPEG:
         {
-            error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
+            error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPort);
             OMX_TRACE(error);
             
             OMX_IMAGE_PARAM_QFACTORTYPE compressionConfig;
@@ -311,18 +311,18 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
         }
         case OMX_IMAGE_CodingGIF:
         {
-            encoderOutputPortDefinition.format.image.eColorFormat = OMX_COLOR_Format8bitPalette;
+            encoderOutputPort.format.image.eColorFormat = OMX_COLOR_Format8bitPalette;
             break;
         }
         default:
         {
-            error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPortDefinition);
+            error =OMX_SetParameter(encoder, OMX_IndexParamPortDefinition, &encoderOutputPort);
             OMX_TRACE(error);
             break;
         }
     }
     
-    ofLogVerbose(__func__) << "encoderOutputPortDefinition: " << GetPortDefinitionString(encoderOutputPortDefinition); 
+    ofLogVerbose(__func__) << "encoderOutputPort: " << GetPortDefinitionString(encoderOutputPort); 
     
     /*
      error = OMX_SetupTunnel(resizer, RESIZER_OUTPUT_PORT,
@@ -473,7 +473,7 @@ void ofxOMXImageEncoder::encode(string filePath_, unsigned char* pixels)
     OMX_TRACE(error);
     //PORT_CHECK();
 
-    PORT_CHECK();
+    //PORT_CHECK();
     
 }
 
@@ -688,6 +688,6 @@ void ofxOMXImageEncoder::checkPorts(bool doBuffers)
     //ofLogVerbose(__func__) << "resizerInput: " << GetPortDefinitionString(resizerInput);
     //ofLogVerbose(__func__) << "resizerOutput: " << GetPortDefinitionString(resizerOutput);
     //ofLogVerbose(__func__) << "encoderInputPortDefinition: " << GetPortDefinitionString(input);
-    //ofLogVerbose(__func__) << "encoderOutputPortDefinition: " << GetPortDefinitionString(output);
+    //ofLogVerbose(__func__) << "encoderOutputPort: " << GetPortDefinitionString(output);
  
 }
