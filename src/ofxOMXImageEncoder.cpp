@@ -124,11 +124,22 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     error =OMX_GetParameter(resizer, OMX_IndexParamPortDefinition, &resizerOutputPort);
     //ofLogVerbose(__func__) << "resizerOutputPort: " << GetPortDefinitionString(resizerOutputPort); 
     
-    resizerOutputPort.format.image.nFrameWidth  =  settings.outputWidth;
-    resizerOutputPort.format.image.nFrameHeight =  settings.outputHeight;
-    resizerOutputPort.format.image.nSliceHeight =  0;
+    //resizerOutputPort.format.image.nFrameWidth  =  settings.outputWidth;
+    //resizerOutputPort.format.image.nFrameHeight =  settings.outputHeight;
+    //resizerOutputPort.format.image.nSliceHeight =  settings.outputHeight;
+
+    
+    resizerOutputPort.format.image = resizerInputPort.format.image;
+    /*
+    if (resizerOutputPort.format.image.nFrameWidth % 16 == 0)
+    {
+        ofLogVerbose(__func__) << "nSliceHeight IS 16 compatible";
+        resizerOutputPort.format.image.nSliceHeight =  resizerOutputPort.format.image.nFrameWidth;
+    }
+    */
     //resizerOutputPort.format.image.nStride      =  settings.outputWidth*numColors;
     
+    /*
     int outputStride = settings.outputWidth*numColors;
     if (outputStride % 32 == 0)
     {
@@ -141,7 +152,7 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
         resizerOutputPort.format.image.nStride = outputStride;
 
     }
-    
+    */
     error =OMX_SetParameter(resizer, OMX_IndexParamPortDefinition, &resizerOutputPort);
     OMX_TRACE(error);
     ofLogVerbose(__func__) << "resizerOutputPort: " << GetPortDefinitionString(resizerOutputPort); 
@@ -243,8 +254,9 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     
     //ofLogVerbose(__func__) << "encoderOutputPort: " << GetPortDefinitionString(encoderOutputPort); 
     
-    
-    encoderOutputPort.format.image.bFlagErrorConcealment = OMX_FALSE;
+    encoderOutputPort.format.image.nFrameWidth  =  encoderInputPort.format.image.nFrameWidth;
+    encoderOutputPort.format.image.nFrameHeight =  encoderInputPort.format.image.nFrameHeight;
+
     //has to be set OMX_COLOR_FormatUnused first or will automatically go to GIF/8bit?
     encoderOutputPort.format.image.eColorFormat = OMX_COLOR_FormatUnused;
     encoderOutputPort.format.image.eCompressionFormat = codingType;
@@ -298,6 +310,9 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
         case OMX_IMAGE_CodingGIF:
         {
             encoderOutputPort.format.image.eColorFormat = OMX_COLOR_Format8bitPalette;
+            error =OMX_SetParameter(encoder,
+                                    OMX_IndexParamPortDefinition,
+                                    &encoderOutputPort);
             break;
         }
         default:
@@ -316,7 +331,7 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
      error = OMX_SetupTunnel(resizer, RESIZER_OUTPUT_PORT,
      encoder, IMAGE_ENCODER_INPUT_PORT);
      OMX_TRACE(error);
-     */
+    */
     //Set resizer to Idle
     error = OMX_SendCommand(resizer,
                             OMX_CommandStateSet,
@@ -332,6 +347,9 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     
     //Allocate buffers
     
+    EnablePortBuffers(encoder,
+                      &inputBuffer,
+                      IMAGE_ENCODER_INPUT_PORT);
     
     EnablePortBuffers(resizer,
                       &resizeInputBuffer,
@@ -342,13 +360,9 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
                       RESIZER_OUTPUT_PORT);
     
     EnablePortBuffers(encoder,
-                      &inputBuffer,
-                      IMAGE_ENCODER_INPUT_PORT);
-    
-    EnablePortBuffers(encoder,
                       &outputBuffer,
                       IMAGE_ENCODER_OUTPUT_PORT);
-    //PORT_CHECK();
+    PORT_CHECK();
     
     error = OMX_SendCommand(resizer,
                             OMX_CommandStateSet,
@@ -403,12 +417,8 @@ void ofxOMXImageEncoder::encode(string filePath_, unsigned char* pixels)
     OMX_TRACE(error);
     //PORT_CHECK();
     
-
     error = OMX_FillThisBuffer(resizer, resizeOutputBuffer);
     OMX_TRACE(error);
-    //PORT_CHECK();
-
-    //PORT_CHECK();
     
 }
 
@@ -447,7 +457,10 @@ void ofxOMXImageEncoder::onEncoderFillBuffer()
 
 void ofxOMXImageEncoder::onResizerEmptyBuffer()
 {
-    ofLogVerbose(__func__) << "UNUSED";
+    ofLogVerbose(__func__) << "";
+    
+
+    
 }
 
 void ofxOMXImageEncoder::onResizerFillBuffer()
@@ -456,6 +469,7 @@ void ofxOMXImageEncoder::onResizerFillBuffer()
     OMX_ERRORTYPE error;
     
     //PORT_CHECK(); 
+    
     inputBuffer->pBuffer = resizeOutputBuffer->pBuffer;
     inputBuffer->nFilledLen = resizeOutputBuffer->nFilledLen;
     
@@ -467,13 +481,19 @@ void ofxOMXImageEncoder::onResizerFillBuffer()
     
     
     
+    error = OMX_FillThisBuffer(encoder, outputBuffer);
+    OMX_TRACE(error);
+    
+   /*
     outputBuffer->pBuffer = inputBuffer->pBuffer;
     outputBuffer->nFilledLen = inputBuffer->nFilledLen;
     
     
     error = OMX_FillThisBuffer(encoder, outputBuffer);
     OMX_TRACE(error);
+    */
     PORT_CHECK();
+    
 }
 
 void ofxOMXImageEncoder::onResizerPortSettingsChanged()
