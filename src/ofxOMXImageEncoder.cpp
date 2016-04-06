@@ -87,7 +87,7 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
                             &resizerInputPort);
     OMX_TRACE(error);
     
-    ofLogVerbose(__func__) << "resizerInputPort: " << GetPortDefinitionString(resizerInputPort); 
+    //ofLogVerbose(__func__) << "resizerInputPort: " << GetPortDefinitionString(resizerInputPort); 
     
     
     if (settings.colorFormat == GL_RGB) 
@@ -126,8 +126,21 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     
     resizerOutputPort.format.image.nFrameWidth  =  settings.outputWidth;
     resizerOutputPort.format.image.nFrameHeight =  settings.outputHeight;
-    //resizerOutputPort.format.image.nSliceHeight =  settings.outputHeight;
+    resizerOutputPort.format.image.nSliceHeight =  0;
     //resizerOutputPort.format.image.nStride      =  settings.outputWidth*numColors;
+    
+    int outputStride = settings.outputWidth*numColors;
+    if (outputStride % 32 == 0)
+    {
+        ofLogVerbose(__func__) << "outputStride IS 32 compatible";
+        resizerOutputPort.format.image.nStride = outputStride;
+    }
+    if (outputStride % 64 == 0)
+    {
+        ofLogVerbose(__func__) << "outputStride IS 64 compatible";
+        resizerOutputPort.format.image.nStride = outputStride;
+
+    }
     
     error =OMX_SetParameter(resizer, OMX_IndexParamPortDefinition, &resizerOutputPort);
     OMX_TRACE(error);
@@ -217,7 +230,7 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
                              OMX_IndexParamPortDefinition,
                              &encoderInputPort);
     OMX_TRACE(error);
-    
+    ofLogVerbose(__func__) << "encoderInputPort: " << GetPortDefinitionString(encoderInputPort);
     
     OMX_PARAM_PORTDEFINITIONTYPE encoderOutputPort;
     OMX_INIT_STRUCTURE(encoderOutputPort);
