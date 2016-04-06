@@ -468,24 +468,11 @@ void ofxOMXImageEncoder::encode(string filePath_, unsigned char* pixels)
     OMX_TRACE(error);
     //PORT_CHECK();
     
-#if 0 
+
     error = OMX_FillThisBuffer(resizer, resizeOutputBuffer);
     OMX_TRACE(error);
     //PORT_CHECK();
-   
-    //PORT_CHECK(); 
-    inputBuffer->pBuffer = resizeOutputBuffer->pBuffer;
-    inputBuffer->nFilledLen = resizeOutputBuffer->nFilledLen;
-    
-    //PORT_CHECK();
-    
-    error = OMX_EmptyThisBuffer(encoder, inputBuffer);
-    OMX_TRACE(error);
-    //PORT_CHECK();
-    
-    error = OMX_FillThisBuffer(encoder, outputBuffer);
-    OMX_TRACE(error);
-#endif
+
     PORT_CHECK();
     
 }
@@ -530,8 +517,21 @@ void ofxOMXImageEncoder::onResizerEmptyBuffer()
 void ofxOMXImageEncoder::onResizerFillBuffer()
 {
     ofLogVerbose(__func__) << "";
+    OMX_ERRORTYPE error;
     
-  
+    //PORT_CHECK(); 
+    inputBuffer->pBuffer = resizeOutputBuffer->pBuffer;
+    inputBuffer->nFilledLen = resizeOutputBuffer->nFilledLen;
+    
+    //PORT_CHECK();
+    
+    error = OMX_EmptyThisBuffer(encoder, inputBuffer);
+    OMX_TRACE(error);
+    //PORT_CHECK();
+    
+    error = OMX_FillThisBuffer(encoder, outputBuffer);
+    OMX_TRACE(error);
+    PORT_CHECK();
 }
 
 OMX_ERRORTYPE 
