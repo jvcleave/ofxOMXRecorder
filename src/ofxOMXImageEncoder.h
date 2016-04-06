@@ -153,6 +153,6 @@ private:
     bool available;
     bool fileNeedsWritten;
     int startTime;
-    vector<OMX_IMAGE_CODINGTYPE> workingCodeTypes;
+    
     void probeEncoder();
 };
