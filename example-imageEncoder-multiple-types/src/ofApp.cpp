@@ -41,9 +41,10 @@ void ofApp::setup()
     ofClear(0);
     ofBackgroundGradient(ofColor::red, ofColor::black, OF_GRADIENT_BAR);
     fbo.end();
+    imageTypes.push_back(ofxOMXImageEncoderSettings::JPG);
     imageTypes.push_back(ofxOMXImageEncoderSettings::PNG);
     imageTypes.push_back(ofxOMXImageEncoderSettings::GIF);
-    imageTypes.push_back(ofxOMXImageEncoderSettings::JPG);
+    
     
     
     
