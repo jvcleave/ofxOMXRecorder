@@ -1,38 +1,30 @@
 #include "ofxOMXImageEncoder.h"
 
-#define LOG_LINE ofLogVerbose(__func__) << __LINE__ << endl;
 
-#define PORT_CHECK_NO_BUFFER(...) LOG_LINE checkPorts(false); 
-#define PORT_CHECK(...) LOG_LINE checkPorts(); 
+#define DEVEL_MODE 1
+
+#if defined(DEVEL_MODE)
+    #define __chan__ __func__
+    #define LOG_LINE ofLogVerbose(__chan__) << __LINE__ << endl;
+    #define PORT_CHECK_NO_BUFFER(...) LOG_LINE checkPorts(false); 
+    #define PORT_CHECK(...) LOG_LINE checkPorts(); 
+#else
+    #define PORT_CHECK(...)
+    #define __chan__ "ofxOMXImageEncoder"
+#endif
 
 
 
-void printResizeInfo(OMX_PARAM_RESIZETYPE resizeConfig)
-{
-    stringstream ss;
-    ss << endl;
-    switch (resizeConfig.eMode) 
-    {
-        case OMX_RESIZE_NONE:   ss << "eMode: " << "OMX_RESIZE_NONE"    << endl; break;
-        case OMX_RESIZE_CROP:   ss << "eMode: " << "OMX_RESIZE_CROP"    << endl; break;
-        case OMX_RESIZE_BOX:    ss << "eMode: " << "OMX_RESIZE_BOX"     << endl; break;
-        case OMX_RESIZE_BYTES:  ss << "eMode: " << "OMX_RESIZE_BYTES"   << endl; break;
-            
-    }
-    ss << "nMaxWidth: " << resizeConfig.nMaxWidth << endl;
-    ss << "nMaxHeight: " << resizeConfig.nMaxHeight << endl;
-    ss << "nMaxBytes: " << resizeConfig.nMaxBytes << endl;
-    ss << "bPreserveAspectRatio: " << resizeConfig.bPreserveAspectRatio << endl;
-    ss << "bAllowUpscaling: " << resizeConfig.bAllowUpscaling << endl;
-    
-    ofLogVerbose(__func__) << "resizeConfig: " << ss.str();
-    
-}
+
 
 
 
 ofxOMXImageEncoder::ofxOMXImageEncoder()
 {
+    
+#if defined(DEVEL_MODE)
+    ofSetLogLevel("ofxOMXImageEncoder", OF_LOG_ERROR);
+#endif
     resetValues();
 }
 
@@ -110,7 +102,7 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     error =OMX_SetParameter(resizer, OMX_IndexParamPortDefinition, &resizerInputPort);
     OMX_TRACE(error);
     
-    ofLogVerbose(__func__) << "resizerInputPort: " << GetPortDefinitionString(resizerInputPort); 
+    ofLogVerbose(__chan__) << "resizerInputPort: " << GetPortDefinitionString(resizerInputPort); 
     
     
     
@@ -124,17 +116,6 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
                             &resizerOutputPort);
     OMX_TRACE(error);
     
-    resizerOutputPort.format.image = resizerInputPort.format.image;
-
-    error =OMX_SetParameter(resizer,
-                            OMX_IndexParamPortDefinition,
-                            &resizerOutputPort);
-    OMX_TRACE(error);
-
-    
-    ofLogVerbose(__func__) << "PRE resizerOutputPort: " << GetPortDefinitionString(resizerOutputPort); 
-    
-    ofLogVerbose(__func__) << "settings: " << settings.toString();
     resizerOutputPort.format.image.nFrameWidth  =   settings.outputWidth;
     resizerOutputPort.format.image.nFrameHeight =   settings.outputHeight;
     resizerOutputPort.format.image.nSliceHeight =   (settings.outputHeight+15) & ~15;
@@ -145,15 +126,7 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
                             OMX_IndexParamPortDefinition,
                             &resizerOutputPort);
     OMX_TRACE(error);
-    
-    error =OMX_GetParameter(resizer,
-                            OMX_IndexParamPortDefinition,
-                            &resizerOutputPort);
-    OMX_TRACE(error);
-    
-    ofLogVerbose(__func__) << "POST resizerOutputPort: " << GetPortDefinitionString(resizerOutputPort); 
-    
-    
+
 
     OMX_CALLBACKTYPE encoderCallbacks;
     encoderCallbacks.EventHandler    = &ofxOMXImageEncoder::encoderEventHandlerCallback;
@@ -190,7 +163,7 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
                              OMX_IndexParamPortDefinition,
                              &encoderInputPort);
     OMX_TRACE(error);
-    ofLogVerbose(__func__) << "encoderInputPort: " << GetPortDefinitionString(encoderInputPort);
+    ofLogVerbose(__chan__) << "encoderInputPort: " << GetPortDefinitionString(encoderInputPort);
     
     OMX_PARAM_PORTDEFINITIONTYPE encoderOutputPort;
     OMX_INIT_STRUCTURE(encoderOutputPort);
@@ -259,7 +232,7 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
                             &encoderOutputPort);
     OMX_TRACE(error);
 
-    ofLogVerbose(__func__) << "encoderOutputPort: " << GetPortDefinitionString(encoderOutputPort); 
+    ofLogVerbose(__chan__) << "encoderOutputPort: " << GetPortDefinitionString(encoderOutputPort); 
     
     //Set resizer to Idle
     error = OMX_SendCommand(resizer,
@@ -331,7 +304,7 @@ void ofxOMXImageEncoder::resetValues()
 void ofxOMXImageEncoder::encode(string filePath_, unsigned char* pixels)
 {
     
-    ofLogVerbose(__func__) << "available: " << available;
+    ofLogVerbose(__chan__) << "available: " << available;
     available = false;
     startTime = ofGetElapsedTimeMillis();
     filePath = filePath_;
@@ -354,20 +327,20 @@ void ofxOMXImageEncoder::encode(string filePath_, unsigned char* pixels)
 
 #pragma mark CALLBACKS
 
-void ofxOMXImageEncoder::onEncoderPortSettingsChanged()
-{
-    ofLogVerbose(__func__) << "";
-}
-
-void ofxOMXImageEncoder::onEncoderEmptyBuffer()
-{
-    ofLogVerbose(__func__) << "";  
-    PORT_CHECK();
+OMX_ERRORTYPE 
+ofxOMXImageEncoder::encoderFillBufferDone(OMX_HANDLETYPE hComponent, 
+                                          OMX_PTR pAppData, 
+                                          OMX_BUFFERHEADERTYPE* pBuffer)
+{	
+    ofLogVerbose(__chan__) << "UNUSED";
+    ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
+    imageDecoder->onEncoderFillBuffer();
+    return OMX_ErrorNone;
 }
 
 void ofxOMXImageEncoder::onEncoderFillBuffer()
 {
-    ofLogVerbose(__func__) << "";
+    ofLogVerbose(__chan__) << "";
     fileBuffer.append((const char*) outputBuffer->pBuffer + outputBuffer->nOffset,
                       outputBuffer->nFilledLen);
     
@@ -382,14 +355,14 @@ void ofxOMXImageEncoder::onEncoderFillBuffer()
         bool didWriteFile = ofBufferToFile(filePath, fileBuffer, true);
         if(didWriteFile)
         {
-            ofLogVerbose(__func__) << filePath << " SUCCESSFULLY WRITTEN IN " << ofGetElapsedTimeMillis() - startTime;
+            ofLogVerbose(__chan__) << filePath << " SUCCESSFULLY WRITTEN IN " << ofGetElapsedTimeMillis() - startTime;
         }else
         {
-            ofLogError(__func__) << filePath << " COULD NOT BE WRITTEN";
+            ofLogError(__chan__) << filePath << " COULD NOT BE WRITTEN";
         }
     }else
     {
-        ofLogError(__func__) << "SKIPPING EMPTY FILE: " << filePath;
+        ofLogError(__chan__) << "SKIPPING EMPTY FILE: " << filePath;
 
     }
     
@@ -399,36 +372,32 @@ void ofxOMXImageEncoder::onEncoderFillBuffer()
     available = true;
 }
 
-void ofxOMXImageEncoder::onResizerPortSettingsChanged()
-{
-    ofLogVerbose(__func__) << "UNUSED";
-    
+OMX_ERRORTYPE 
+ofxOMXImageEncoder::resizerFillBufferDone(OMX_HANDLETYPE hComponent, 
+                                          OMX_PTR pAppData, 
+                                          OMX_BUFFERHEADERTYPE* pBuffer)
+{	
+    ofLogVerbose(__chan__) << "";
+    ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
+    imageDecoder->onResizerFillBuffer();
+    return OMX_ErrorNone;
 }
 
-void ofxOMXImageEncoder::onResizerEmptyBuffer()
-{
-    ofLogVerbose(__func__) << "UNUSED";
-}
+
 
 
 void ofxOMXImageEncoder::onResizerFillBuffer()
 {
-    ofLogVerbose(__func__) << "";
-    OMX_ERRORTYPE error;
+    ofLogVerbose(__chan__) << "";
     
-    //PORT_CHECK(); 
+    OMX_ERRORTYPE error;
     
     inputBuffer->pBuffer = resizeOutputBuffer->pBuffer;
     inputBuffer->nFilledLen = resizeOutputBuffer->nFilledLen;
     
-    //PORT_CHECK();
-    
     error = OMX_EmptyThisBuffer(encoder, inputBuffer);
     OMX_TRACE(error);
-    //PORT_CHECK();
-    
-    
-    
+   
     error = OMX_FillThisBuffer(encoder, outputBuffer);
     OMX_TRACE(error);
  
@@ -446,51 +415,22 @@ ofxOMXImageEncoder::resizerEventHandlerCallback(OMX_HANDLETYPE hComponent,
                                                 OMX_U32 nData2,
                                                 OMX_PTR pEventData)
 {
+
+#if defined(DEVEL_MODE)
     ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
-    
-    ofLogVerbose(__func__) << GetEventString(event);
-    
+    ofLogVerbose(__chan__) << GetEventString(event);
     if(event == OMX_EventError)
     {
-        ofLogVerbose(__func__) << GetOMXErrorString((OMX_ERRORTYPE) nData1);
+        ofLogVerbose(__chan__) << GetOMXErrorString((OMX_ERRORTYPE) nData1);
         
     }
     if (event == OMX_EventPortSettingsChanged) 
     {
         imageDecoder->onResizerPortSettingsChanged();
     }
+#endif
     return OMX_ErrorNone;
 }
-
-OMX_ERRORTYPE 
-ofxOMXImageEncoder::resizerEmptyBufferDone(OMX_HANDLETYPE hComponent, 
-                                           OMX_PTR pAppData, 
-                                           OMX_BUFFERHEADERTYPE* pBuffer)
-{
-    
-    //never called for some reason
-    ofLogVerbose(__func__) << "";
-    ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
-    ofLogVerbose(__func__) << "pBuffer: " << GetBufferHeaderString(pBuffer);
-    
-    imageDecoder->onResizerEmptyBuffer();
-    return OMX_ErrorNone;
-    
-}
-
-OMX_ERRORTYPE 
-ofxOMXImageEncoder::resizerFillBufferDone(OMX_HANDLETYPE hComponent, 
-                                          OMX_PTR pAppData, 
-                                          OMX_BUFFERHEADERTYPE* pBuffer)
-{	
-    ofLogVerbose(__func__) << "";
-    ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
-    imageDecoder->onResizerFillBuffer();
-    return OMX_ErrorNone;
-}
-
-
-
 
 OMX_ERRORTYPE 
 ofxOMXImageEncoder::encoderEventHandlerCallback(OMX_HANDLETYPE hComponent,
@@ -500,48 +440,27 @@ ofxOMXImageEncoder::encoderEventHandlerCallback(OMX_HANDLETYPE hComponent,
                                             OMX_U32 nData2,
                                             OMX_PTR pEventData)
 {
+#if defined(DEVEL_MODE)
     ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
     
-    ofLogVerbose(__func__) << GetEventString(event);
+    ofLogVerbose(__chan__) << GetEventString(event);
     
     if(event == OMX_EventError)
     {
-        ofLogVerbose(__func__) << GetOMXErrorString((OMX_ERRORTYPE) nData1);
+        ofLogVerbose(__chan__) << GetOMXErrorString((OMX_ERRORTYPE) nData1);
         
     }
+
     if (event == OMX_EventPortSettingsChanged) 
     {
         imageDecoder->onEncoderPortSettingsChanged();
     }
+#endif
     return OMX_ErrorNone;
 };
 
 
 
-
-OMX_ERRORTYPE 
-ofxOMXImageEncoder::encoderEmptyBufferDone(OMX_HANDLETYPE hComponent, 
-                                                     OMX_PTR pAppData, 
-                                                     OMX_BUFFERHEADERTYPE* pBuffer)
-{
-    
-    ofLogVerbose(__func__) << "UNUSED";
-    ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
-    imageDecoder->onEncoderEmptyBuffer();
-    return OMX_ErrorNone;
-    
-}
-
-OMX_ERRORTYPE 
-ofxOMXImageEncoder::encoderFillBufferDone(OMX_HANDLETYPE hComponent, 
-                                                    OMX_PTR pAppData, 
-                                                    OMX_BUFFERHEADERTYPE* pBuffer)
-{	
-    ofLogVerbose(__func__) << "UNUSED";
-    ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
-    imageDecoder->onEncoderFillBuffer();
-    return OMX_ErrorNone;
-}
 
 
 #pragma mark CLOSE
@@ -559,7 +478,7 @@ void ofxOMXImageEncoder::close()
 ofxOMXImageEncoder::~ofxOMXImageEncoder()
 {
     teardown();
-    OMX_Deinit();
+    //OMX_Deinit();
 }
 
 
@@ -677,15 +596,15 @@ void ofxOMXImageEncoder::checkPorts(bool doBuffers)
     
     if (doBuffers) 
     {
-        ofLogVerbose(__func__) << "resizeInputBuffer: " << GetBufferHeaderString(resizeInputBuffer);
-        ofLogVerbose(__func__) << "resizeOutputBuffer: " << GetBufferHeaderString(resizeOutputBuffer);
-        ofLogVerbose(__func__) << "inputBuffer: " << GetBufferHeaderString(inputBuffer);
-        ofLogVerbose(__func__) << "outputBuffer: " << GetBufferHeaderString(outputBuffer);
+        ofLogVerbose(__chan__) << "resizeInputBuffer: " << GetBufferHeaderString(resizeInputBuffer);
+        ofLogVerbose(__chan__) << "resizeOutputBuffer: " << GetBufferHeaderString(resizeOutputBuffer);
+        ofLogVerbose(__chan__) << "inputBuffer: " << GetBufferHeaderString(inputBuffer);
+        ofLogVerbose(__chan__) << "outputBuffer: " << GetBufferHeaderString(outputBuffer);
     }
-    //ofLogVerbose(__func__) << "resizerInput: " << GetPortDefinitionString(resizerInput);
-    //ofLogVerbose(__func__) << "resizerOutput: " << GetPortDefinitionString(resizerOutput);
-    //ofLogVerbose(__func__) << "encoderInputPortDefinition: " << GetPortDefinitionString(input);
-    //ofLogVerbose(__func__) << "encoderOutputPort: " << GetPortDefinitionString(output);
+    ofLogVerbose(__chan__) << "resizerInput: " << GetPortDefinitionString(resizerInput);
+    ofLogVerbose(__chan__) << "resizerOutput: " << GetPortDefinitionString(resizerOutput);
+    ofLogVerbose(__chan__) << "encoderInputPortDefinition: " << GetPortDefinitionString(input);
+    ofLogVerbose(__chan__) << "encoderOutputPort: " << GetPortDefinitionString(output);
  
 }
 
