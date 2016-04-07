@@ -285,11 +285,6 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     
     ofLogVerbose(__func__) << "encoderOutputPort: " << GetPortDefinitionString(encoderOutputPort); 
     
-    /*
-     error = OMX_SetupTunnel(resizer, RESIZER_OUTPUT_PORT,
-     encoder, IMAGE_ENCODER_INPUT_PORT);
-     OMX_TRACE(error);
-    */
     //Set resizer to Idle
     error = OMX_SendCommand(resizer,
                             OMX_CommandStateSet,
@@ -382,6 +377,17 @@ void ofxOMXImageEncoder::encode(string filePath_, unsigned char* pixels)
 
 
 #pragma mark CALLBACKS
+
+void ofxOMXImageEncoder::onEncoderPortSettingsChanged()
+{
+    ofLogVerbose(__func__) << "";
+}
+
+void ofxOMXImageEncoder::onEncoderEmptyBuffer()
+{
+    ofLogVerbose(__func__) << "";    
+}
+
 void ofxOMXImageEncoder::onEncoderFillBuffer()
 {
     ofLogVerbose(__func__) << "";
@@ -410,16 +416,20 @@ void ofxOMXImageEncoder::onEncoderFillBuffer()
     fileBuffer.clear();
     startTime = 0;
     //PORT_CHECK(); 
-    //available = true;
+    available = true;
+}
+
+void ofxOMXImageEncoder::onResizerPortSettingsChanged()
+{
+    ofLogVerbose(__func__) << "UNUSED";
+    
 }
 
 void ofxOMXImageEncoder::onResizerEmptyBuffer()
 {
-    ofLogVerbose(__func__) << "";
-    
-
-    
+    ofLogVerbose(__func__) << "UNUSED";
 }
+
 
 void ofxOMXImageEncoder::onResizerFillBuffer()
 {
@@ -446,11 +456,7 @@ void ofxOMXImageEncoder::onResizerFillBuffer()
     
 }
 
-void ofxOMXImageEncoder::onResizerPortSettingsChanged()
-{
-    ofLogVerbose(__func__) << "";
-    
-}
+
 
 OMX_ERRORTYPE 
 ofxOMXImageEncoder::resizerEventHandlerCallback(OMX_HANDLETYPE hComponent,
@@ -530,10 +536,7 @@ ofxOMXImageEncoder::encoderEventHandlerCallback(OMX_HANDLETYPE hComponent,
     return OMX_ErrorNone;
 };
 
-void ofxOMXImageEncoder::onEncoderPortSettingsChanged()
-{
-    ofLogVerbose(__func__) << "";
-}
+
 
 
 OMX_ERRORTYPE 
@@ -542,24 +545,18 @@ ofxOMXImageEncoder::encoderEmptyBufferDone(OMX_HANDLETYPE hComponent,
                                                      OMX_BUFFERHEADERTYPE* pBuffer)
 {
     
-    ofLogVerbose(__func__) << "";
+    ofLogVerbose(__func__) << "UNUSED";
     ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
     return OMX_ErrorNone;
     
 }
-
-void ofxOMXImageEncoder::onEncoderEmptyBuffer()
-{
-    ofLogVerbose(__func__) << "";    
-}
-
 
 OMX_ERRORTYPE 
 ofxOMXImageEncoder::encoderFillBufferDone(OMX_HANDLETYPE hComponent, 
                                                     OMX_PTR pAppData, 
                                                     OMX_BUFFERHEADERTYPE* pBuffer)
 {	
-    ofLogVerbose(__func__) << "";
+    ofLogVerbose(__func__) << "UNUSED";
     ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
     imageDecoder->onEncoderFillBuffer();
     return OMX_ErrorNone;
