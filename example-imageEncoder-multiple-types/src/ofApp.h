@@ -37,8 +37,11 @@ public:
     vector<ofxOMXImageEncoderSettings::IMAGE_TYPE> imageTypes;
     int currentEncoderID;
     void setupEncoder(int id);
+    
     int width;
     int height;
+    int resizeWidth;
+    int resizeHeight;
 };
 
 

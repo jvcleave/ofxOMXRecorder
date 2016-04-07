@@ -1,7 +1,7 @@
 #include "ofxOMXImageEncoder.h"
 
 
-#define DEVEL_MODE 1
+//#define DEVEL_MODE 1
 
 #if defined(DEVEL_MODE)
     #define __chan__ __func__
@@ -22,9 +22,7 @@
 ofxOMXImageEncoder::ofxOMXImageEncoder()
 {
     
-#if defined(DEVEL_MODE)
     ofSetLogLevel("ofxOMXImageEncoder", OF_LOG_ERROR);
-#endif
     resetValues();
 }
 
@@ -296,6 +294,8 @@ void ofxOMXImageEncoder::resetValues()
     pixelSize = 0;
     startTime = 0;
     available = false;
+    
+    savedFiles.clear();
 }
 
 
@@ -344,18 +344,25 @@ void ofxOMXImageEncoder::onEncoderFillBuffer()
     fileBuffer.append((const char*) outputBuffer->pBuffer + outputBuffer->nOffset,
                       outputBuffer->nFilledLen);
     
+    if (settings.enablePrettyFileName) 
+    {
+        filePath+="_";
+        filePath+=settings.getPrettyFileName();
+    }
     string fileExtension = settings.getFileExtension();
     if (!ofIsStringInString(filePath, fileExtension)) 
     {
         filePath+=fileExtension;
         
     }
+    
     if(fileBuffer.size() > 0)
     {
         bool didWriteFile = ofBufferToFile(filePath, fileBuffer, true);
         if(didWriteFile)
         {
-            ofLogVerbose(__chan__) << filePath << " SUCCESSFULLY WRITTEN IN " << ofGetElapsedTimeMillis() - startTime;
+            ofLogVerbose() << filePath << " SUCCESSFULLY WRITTEN IN " << ofGetElapsedTimeMillis() - startTime << " MS";
+            savedFiles.push_back(ofFile(filePath));
         }else
         {
             ofLogError(__chan__) << filePath << " COULD NOT BE WRITTEN";

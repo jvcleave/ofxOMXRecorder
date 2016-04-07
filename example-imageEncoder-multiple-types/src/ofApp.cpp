@@ -20,8 +20,11 @@ void ofApp::setup()
     
     width = 1280;
     height = 720;
-    colorFormat = GL_RGBA;
     
+    resizeWidth = width;
+    resizeHeight = height;
+
+    colorFormat = GL_RGBA;
     
     
     if (colorFormat == GL_RGB) 
@@ -38,10 +41,11 @@ void ofApp::setup()
     ofClear(0);
     ofBackgroundGradient(ofColor::red, ofColor::black, OF_GRADIENT_BAR);
     fbo.end();
-    
-    imageTypes.push_back(ofxOMXImageEncoderSettings::JPG);
     imageTypes.push_back(ofxOMXImageEncoderSettings::PNG);
     imageTypes.push_back(ofxOMXImageEncoderSettings::GIF);
+    imageTypes.push_back(ofxOMXImageEncoderSettings::JPG);
+    
+    
     
     
     setupEncoder(0);
@@ -74,8 +78,10 @@ void ofApp::setupEncoder(int id)
         encoderSettings.JPGCompressionLevel = 50; //0-100
         
     }
-    encoderSettings.outputWidth  = width/2;            
-    encoderSettings.outputHeight = height/2;           
+    
+    encoderSettings.outputWidth  = resizeWidth;            
+    encoderSettings.outputHeight = resizeHeight; 
+    
     
     
     ofDirectory savedImagesFolder("savedImages");
@@ -155,7 +161,7 @@ void ofApp::update()
         {
             doRestart = false;
             endTime = ofGetElapsedTimeMillis();
-            ofLogVerbose() << imageCounter << " IMAGES TOOK OMX MS: " << endTime-startTime;
+            ofLogVerbose() << imageCounter << " " << encoder.getSettings().getImageTypeString() << "s TOOK OPENMAX " << endTime-startTime  <<" MS ";
             encoder.close();
             if (currentEncoderID+1 < imageTypes.size())
             {
@@ -169,8 +175,9 @@ void ofApp::update()
                 currentEncoderID = 0;
                 //ofSaveImage for speed comparision
                 int startTimeOF = ofGetElapsedTimeMillis();
-                ofSaveImage(pixelsOF, ofToDataPath("OF_SAVE.png", true));
-                ofLogVerbose() << "OF IMAGE TOOK MS: " << ofGetElapsedTimeMillis()-startTimeOF;
+                string imageFilePath = ofToDataPath("OF_SAVE.png", true);
+                ofSaveImage(pixelsOF, imageFilePath);
+                ofLogVerbose() << imageFilePath << " TOOK ofSaveImage " << ofGetElapsedTimeMillis()-startTimeOF << " MS";
             }
         }
         

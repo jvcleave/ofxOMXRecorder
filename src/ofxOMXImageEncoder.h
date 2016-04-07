@@ -52,6 +52,12 @@ public:
             outputHeight = height;
         }
     }
+    string getPrettyFileName()
+    {
+        stringstream info;
+        info << outputWidth << "x" << outputHeight;
+        return info.str();
+    }
     string getImageTypeString()
     {
         string typeString = "UNSET";
@@ -116,6 +122,7 @@ public:
     {
         return settings;
     }
+    vector<ofFile> savedFiles;
 private:
     void checkPorts(bool doBuffers=true);
     void resetValues();
