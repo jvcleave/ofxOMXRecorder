@@ -70,6 +70,31 @@ public:
     {
         return "." + getImageTypeString();
     }
+    string toString()
+    {
+        stringstream info;
+        info << endl;
+        info << "width: " << width << endl;
+        info << "height: " << height << endl;
+        info << "outputWidth: " << outputWidth << endl;
+        info << "outputHeight: " << outputHeight << endl;
+        info << "bitrateMegabytesPerSecond: " << bitrateMegabytesPerSecond << endl;
+        info << "imageType: " << getImageTypeString() << endl;
+        info << "enablePrettyFileName: " << enablePrettyFileName << endl;
+        info << "JPGCompressionLevel: " << JPGCompressionLevel << endl;
+
+        if (colorFormat == GL_RGBA)
+        {
+            info << "colorFormat: " << "GL_RGBA" << endl;
+
+        }
+        if (colorFormat == GL_RGB)
+        {
+            info << "colorFormat: " << "GL_RGB" << endl;
+            
+        }
+        return info.str();
+    }
 };
 
 
@@ -97,6 +122,8 @@ private:
     void teardown();
     ofxOMXImageEncoderSettings settings;
     OMX_HANDLETYPE encoder;
+    OMX_BUFFERHEADERTYPE* resizeInputBuffer;
+    OMX_BUFFERHEADERTYPE* resizeOutputBuffer;
 
     OMX_BUFFERHEADERTYPE* inputBuffer;
     OMX_BUFFERHEADERTYPE* outputBuffer;
@@ -109,19 +136,41 @@ private:
                                 OMX_EVENTTYPE, 
                                 OMX_U32, OMX_U32, 
                                 OMX_PTR);
+
     static OMX_ERRORTYPE 
     encoderEmptyBufferDone(OMX_HANDLETYPE, 
                            OMX_PTR, 
-                           OMX_BUFFERHEADERTYPE*);
+                           OMX_BUFFERHEADERTYPE*){return OMX_ErrorNone;};
     
     static OMX_ERRORTYPE
     encoderFillBufferDone(OMX_HANDLETYPE,
                           OMX_PTR,
                           OMX_BUFFERHEADERTYPE*);
-   
     
-    void onEncoderPortSettingsChanged();
-    void onEncoderEmptyBuffer();
+    //resizer
+    OMX_HANDLETYPE resizer;
+    static OMX_ERRORTYPE 
+    resizerEmptyBufferDone(OMX_HANDLETYPE, 
+                           OMX_PTR, 
+                           OMX_BUFFERHEADERTYPE*){return OMX_ErrorNone;};
+    
+    static OMX_ERRORTYPE
+    resizerFillBufferDone(OMX_HANDLETYPE,
+                          OMX_PTR,
+                          OMX_BUFFERHEADERTYPE*);
+    
+    static OMX_ERRORTYPE 
+    resizerEventHandlerCallback(OMX_HANDLETYPE, 
+                                OMX_PTR, 
+                                OMX_EVENTTYPE, 
+                                OMX_U32, OMX_U32, 
+                                OMX_PTR);
+    void onResizerEmptyBuffer(){};
+    void onResizerFillBuffer();
+    void onResizerPortSettingsChanged(){};
+    
+    void onEncoderPortSettingsChanged(){};
+    void onEncoderEmptyBuffer(){};
     void onEncoderFillBuffer();
     int pixelSize;
     ofBuffer fileBuffer;
@@ -129,6 +178,6 @@ private:
     bool available;
     bool fileNeedsWritten;
     int startTime;
-    vector<OMX_IMAGE_CODINGTYPE> workingCodeTypes;
+    
     void probeEncoder();
 };

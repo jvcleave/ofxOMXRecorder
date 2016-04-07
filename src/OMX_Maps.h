@@ -917,6 +917,13 @@ memset(&(a), 0, sizeof(a)); \
 (a).nVersion.s.nRevision = OMX_VERSION_REVISION; \
 (a).nVersion.s.nStep = OMX_VERSION_STEP
 
+#define OMX_INIT_STRUCTURE_OLD(a) \
+memset(&(a), 0, sizeof(a)); \
+(a).nSize = sizeof(a); \
+(a).nVersion.s.nVersionMajor = OMX_VERSION_MAJOR; \
+(a).nVersion.s.nVersionMinor = OMX_VERSION_MINOR; \
+(a).nVersion.s.nRevision = 0; \
+(a).nVersion.s.nStep = OMX_VERSION_STEP
 
 
 #define OMX_CAMERA (OMX_STRING)"OMX.broadcom.camera"
