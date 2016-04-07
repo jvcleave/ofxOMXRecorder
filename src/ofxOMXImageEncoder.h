@@ -70,6 +70,31 @@ public:
     {
         return "." + getImageTypeString();
     }
+    string toString()
+    {
+        stringstream info;
+        info << endl;
+        info << "width: " << width << endl;
+        info << "height: " << height << endl;
+        info << "outputWidth: " << outputWidth << endl;
+        info << "outputHeight: " << outputHeight << endl;
+        info << "bitrateMegabytesPerSecond: " << bitrateMegabytesPerSecond << endl;
+        info << "imageType: " << getImageTypeString() << endl;
+        info << "enablePrettyFileName: " << enablePrettyFileName << endl;
+        info << "JPGCompressionLevel: " << JPGCompressionLevel << endl;
+
+        if (colorFormat == GL_RGBA)
+        {
+            info << "colorFormat: " << "GL_RGBA" << endl;
+
+        }
+        if (colorFormat == GL_RGB)
+        {
+            info << "colorFormat: " << "GL_RGB" << endl;
+            
+        }
+        return info.str();
+    }
 };
 
 
