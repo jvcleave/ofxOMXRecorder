@@ -17,7 +17,6 @@ public:
     };
     int width;
     int height;
-    int colorFormat;
     float bitrateMegabytesPerSecond;
     bool enablePrettyFileName;
     IMAGE_TYPE imageType;
@@ -29,7 +28,6 @@ public:
     {
         width = 1280;
         height = 720;
-        colorFormat = GL_RGBA;
         bitrateMegabytesPerSecond = 2.0;
         enablePrettyFileName = true;
         imageType = PNG;
@@ -88,17 +86,6 @@ public:
         info << "imageType: " << getImageTypeString() << endl;
         info << "enablePrettyFileName: " << enablePrettyFileName << endl;
         info << "JPGCompressionLevel: " << JPGCompressionLevel << endl;
-
-        if (colorFormat == GL_RGBA)
-        {
-            info << "colorFormat: " << "GL_RGBA" << endl;
-
-        }
-        if (colorFormat == GL_RGB)
-        {
-            info << "colorFormat: " << "GL_RGB" << endl;
-            
-        }
         return info.str();
     }
 };
@@ -185,6 +172,7 @@ private:
     bool available;
     bool fileNeedsWritten;
     int startTime;
-    
+    bool needsPadding;
+    unsigned char* paddedPixels;
     void probeEncoder();
 };

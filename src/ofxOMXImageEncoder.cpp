@@ -15,6 +15,27 @@
 
 
 
+void printResizeInfo(OMX_PARAM_RESIZETYPE resizeConfig)
+{
+    stringstream ss;
+    ss << endl;
+    switch (resizeConfig.eMode) 
+    {
+        case OMX_RESIZE_NONE:   ss << "eMode: " << "OMX_RESIZE_NONE"    << endl; break;
+        case OMX_RESIZE_CROP:   ss << "eMode: " << "OMX_RESIZE_CROP"    << endl; break;
+        case OMX_RESIZE_BOX:    ss << "eMode: " << "OMX_RESIZE_BOX"     << endl; break;
+        case OMX_RESIZE_BYTES:  ss << "eMode: " << "OMX_RESIZE_BYTES"   << endl; break;
+            
+    }
+    ss << "nMaxWidth: " << resizeConfig.nMaxWidth << endl;
+    ss << "nMaxHeight: " << resizeConfig.nMaxHeight << endl;
+    ss << "nMaxBytes: " << resizeConfig.nMaxBytes << endl;
+    ss << "bPreserveAspectRatio: " << resizeConfig.bPreserveAspectRatio << endl;
+    ss << "bAllowUpscaling: " << resizeConfig.bAllowUpscaling << endl;
+    
+    ofLogVerbose(__func__) << "resizeConfig: " << ss.str();
+    
+}
 
 
 
@@ -33,16 +54,7 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
 {
     settings = settings_;
     settings.validate();
-    int numColors = 0;
-    if (settings.colorFormat == GL_RGB) 
-    {
-        numColors = 3;
-        
-    }
-    if (settings.colorFormat == GL_RGBA) 
-    {
-        numColors = 4;
-    }
+    int numColors = 4;
     pixelSize = settings.width * settings.height * numColors;
 
     OMX_ERRORTYPE error = OMX_ErrorNone;
@@ -51,9 +63,9 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     
     
     codingType = (OMX_IMAGE_CODINGTYPE)settings.imageType;
+    ofLogVerbose(__func__) << "numColors: " << numColors;
     
-    bool needResize = false;
-    
+#pragma mark Create Resizer 
     OMX_CALLBACKTYPE resizerCallbacks;
     resizerCallbacks.EventHandler		= &ofxOMXImageEncoder::resizerEventHandlerCallback;
     resizerCallbacks.EmptyBufferDone	= &ofxOMXImageEncoder::resizerEmptyBufferDone;
@@ -76,23 +88,19 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
                             OMX_IndexParamPortDefinition,
                             &resizerInputPort);
     OMX_TRACE(error);
+     
     
-    
-    
-    if (settings.colorFormat == GL_RGB) 
-    {
-        resizerInputPort.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
-        
-    }
-    if (settings.colorFormat == GL_RGBA) 
-    {
-        resizerInputPort.format.image.eColorFormat = OMX_COLOR_Format32bitABGR8888;
-    }
-    
+    //ProbeImageColorFormats(resizer, resizerInputPort);
+    /*
+    32bitABGR8888
+    32bitARGB8888
+    YUV420PackedPlanar
+    */
     
     resizerInputPort.format.image.nFrameWidth   =   settings.width;
     resizerInputPort.format.image.nFrameHeight  =   settings.height;
     resizerInputPort.format.image.nSliceHeight  =   settings.height;
+    resizerInputPort.format.image.eColorFormat  =   OMX_COLOR_Format32bitABGR8888;
     //Stride is byte-per-pixel*width
     resizerInputPort.format.image.nStride       =   settings.width * numColors;
 
@@ -100,6 +108,8 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     error =OMX_SetParameter(resizer, OMX_IndexParamPortDefinition, &resizerInputPort);
     OMX_TRACE(error);
     
+    error =OMX_GetParameter(resizer, OMX_IndexParamPortDefinition, &resizerInputPort);
+    OMX_TRACE(error);
     ofLogVerbose(__chan__) << "resizerInputPort: " << GetPortDefinitionString(resizerInputPort); 
     
     
@@ -126,6 +136,7 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     OMX_TRACE(error);
 
 
+#pragma mark Create Encoder
     OMX_CALLBACKTYPE encoderCallbacks;
     encoderCallbacks.EventHandler    = &ofxOMXImageEncoder::encoderEventHandlerCallback;
     encoderCallbacks.EmptyBufferDone = &ofxOMXImageEncoder::encoderEmptyBufferDone;
@@ -145,17 +156,7 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     OMX_TRACE(error);
     
     encoderInputPort.format.image = resizerOutputPort.format.image;
-    
-    if (settings.colorFormat == GL_RGB) 
-    {
-        encoderInputPort.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
-        
-    }
-    if (settings.colorFormat == GL_RGBA) 
-    {
-        encoderInputPort.format.image.eColorFormat = OMX_COLOR_Format32bitABGR8888;
-    }
-    
+    encoderInputPort.format.image.eColorFormat = OMX_COLOR_Format32bitABGR8888;
         
     error = OMX_SetParameter(encoder,
                              OMX_IndexParamPortDefinition,
@@ -181,14 +182,7 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
     {
         case OMX_IMAGE_CodingPNG:
         {
-            if (settings.colorFormat == GL_RGB) 
-            {
-                encoderOutputPort.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
-            }
-            if (settings.colorFormat == GL_RGBA) 
-            {
-                encoderOutputPort.format.image.eColorFormat = OMX_COLOR_Format32bitABGR8888;
-            }
+            encoderOutputPort.format.image.eColorFormat = OMX_COLOR_Format32bitABGR8888;
             break;
         }
             
@@ -218,7 +212,12 @@ void ofxOMXImageEncoder::setup(ofxOMXImageEncoderSettings settings_)
             encoderOutputPort.format.image.eColorFormat = OMX_COLOR_Format8bitPalette;
             break;
         }
-            
+        
+        case OMX_IMAGE_CodingBMP:
+        {
+            encoderOutputPort.format.image.eColorFormat = OMX_COLOR_Format24bitBGR888;
+            break;
+        }    
         default:
         {
             break;
@@ -290,11 +289,11 @@ void ofxOMXImageEncoder::resetValues()
     outputBuffer = NULL;
     resizeInputBuffer = NULL;
     resizeOutputBuffer = NULL;
-
+    paddedPixels = NULL;
     pixelSize = 0;
     startTime = 0;
     available = false;
-    
+    needsPadding = false;
     savedFiles.clear();
 }
 
@@ -565,6 +564,10 @@ void ofxOMXImageEncoder::teardown()
         
         error = OMX_FreeHandle(encoder);
         OMX_TRACE(error);
+    }
+    if (paddedPixels) 
+    {
+        delete[] paddedPixels;
     }
     resetValues();
 }
