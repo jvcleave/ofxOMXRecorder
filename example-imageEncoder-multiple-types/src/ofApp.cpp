@@ -23,33 +23,9 @@ void ofApp::setup()
     
     resizeWidth = width;
     resizeHeight = height;
-
-    colorFormat = GL_RGBA;
-    
-    
-    if (colorFormat == GL_RGB) 
-    {
-        numColors = 3;
-    }
-    if (colorFormat == GL_RGBA) 
-    {
-        numColors = 4;
-        ofEnableAlphaBlending();
-    }
-    fbo.allocate(width, height, colorFormat);
-    fbo.begin();
-    ofClear(0);
-    ofBackgroundGradient(ofColor::red, ofColor::black, OF_GRADIENT_BAR);
-    fbo.end();
-    imageTypes.push_back(ofxOMXImageEncoderSettings::JPG);
-    imageTypes.push_back(ofxOMXImageEncoderSettings::PNG);
-    imageTypes.push_back(ofxOMXImageEncoderSettings::GIF);
-    
-    
-    
-    
-    
-    setupEncoder(0);
+    colorFormat = GL_RGBA; //GL_RGBA currently required
+    numColors = 4;
+    ofEnableAlphaBlending();
     
     
     int dataSize = width * height * numColors;
@@ -57,7 +33,22 @@ void ofApp::setup()
     memset(pixels, 0xff, dataSize); //set to white
     
     pixelsOF.setFromExternalPixels(pixels, width, height, numColors);
+    
+    
+    fbo.allocate(width, height, colorFormat);
+    fbo.begin();
+        ofClear(0);
+        ofBackgroundGradient(ofColor::red, ofColor::black, OF_GRADIENT_BAR);
+    fbo.end();
+    
+    imageTypes.push_back(ofxOMXImageEncoderSettings::JPG);
+    imageTypes.push_back(ofxOMXImageEncoderSettings::PNG);
+    imageTypes.push_back(ofxOMXImageEncoderSettings::GIF);
+    
+    currentEncoderID = 0;
+    setupEncoder(currentEncoderID);
 }
+
 
 void ofApp::setupEncoder(int id)
 {
@@ -72,7 +63,6 @@ void ofApp::setupEncoder(int id)
     ofxOMXImageEncoderSettings encoderSettings;
     encoderSettings.width       = width;        //default 1280, max 1280
     encoderSettings.height      = height;       //default 720, max 720
-    encoderSettings.colorFormat = colorFormat;  //default GL_RGBA or GL_RGB    
     encoderSettings.imageType   = imageType;
     if (imageType == ofxOMXImageEncoderSettings::JPG)
     {

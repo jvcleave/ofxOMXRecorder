@@ -18,19 +18,11 @@ void ofApp::setup(){
     
     int width = 1280;
     int height = 720;
-    colorFormat = GL_RGBA;
-    
+    colorFormat = GL_RGBA; //GL_RGBA currently required
+    numColors = 4;
+    ofEnableAlphaBlending();
 
     
-    if (colorFormat == GL_RGB) 
-    {
-        numColors = 3;
-    }
-    if (colorFormat == GL_RGBA) 
-    {
-        numColors = 4;
-        ofEnableAlphaBlending();
-    }
     fbo.allocate(width, height, colorFormat);
     fbo.begin();
         ofClear(0);
@@ -58,7 +50,6 @@ void ofApp::setup(){
     ofxOMXImageEncoderSettings encoderSettings;
     encoderSettings.width       = width;        //default 1280, max 1280
     encoderSettings.height      = height;       //default 720, max 720
-    encoderSettings.colorFormat = colorFormat;  //default GL_RGBA or GL_RGB    
     encoderSettings.imageType   = imageType;
     if (imageType == ofxOMXImageEncoderSettings::JPG)
     {
