@@ -327,12 +327,44 @@ void ofxOMXImageEncoder::encode(string filePath_, unsigned char* pixels)
 
 #pragma mark CALLBACKS
 
+OMX_ERRORTYPE
+ofxOMXImageEncoder::resizerFillBufferDone(OMX_HANDLETYPE hComponent,
+                                          OMX_PTR pAppData,
+                                          OMX_BUFFERHEADERTYPE* pBuffer)
+{
+    ofLogVerbose(__chan__) << "";
+    ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
+    imageDecoder->onResizerFillBuffer();
+    return OMX_ErrorNone;
+}
+
+
+
+
+void ofxOMXImageEncoder::onResizerFillBuffer()
+{
+    ofLogVerbose(__chan__) << "";
+    
+    OMX_ERRORTYPE error;
+    
+    inputBuffer->pBuffer = resizeOutputBuffer->pBuffer;
+    inputBuffer->nFilledLen = resizeOutputBuffer->nFilledLen;
+    
+    error = OMX_EmptyThisBuffer(encoder, inputBuffer);
+    OMX_TRACE(error);
+    
+    error = OMX_FillThisBuffer(encoder, outputBuffer);
+    OMX_TRACE(error);
+    
+    PORT_CHECK();
+    
+}
+
 OMX_ERRORTYPE 
 ofxOMXImageEncoder::encoderFillBufferDone(OMX_HANDLETYPE hComponent, 
                                           OMX_PTR pAppData, 
                                           OMX_BUFFERHEADERTYPE* pBuffer)
 {	
-    ofLogVerbose(__chan__) << "UNUSED";
     ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
     imageDecoder->onEncoderFillBuffer();
     return OMX_ErrorNone;
@@ -378,40 +410,6 @@ void ofxOMXImageEncoder::onEncoderFillBuffer()
     //PORT_CHECK(); 
     available = true;
 }
-
-OMX_ERRORTYPE 
-ofxOMXImageEncoder::resizerFillBufferDone(OMX_HANDLETYPE hComponent, 
-                                          OMX_PTR pAppData, 
-                                          OMX_BUFFERHEADERTYPE* pBuffer)
-{	
-    ofLogVerbose(__chan__) << "";
-    ofxOMXImageEncoder *imageDecoder = static_cast<ofxOMXImageEncoder*>(pAppData);
-    imageDecoder->onResizerFillBuffer();
-    return OMX_ErrorNone;
-}
-
-
-
-
-void ofxOMXImageEncoder::onResizerFillBuffer()
-{
-    ofLogVerbose(__chan__) << "";
-    
-    OMX_ERRORTYPE error;
-    
-    inputBuffer->pBuffer = resizeOutputBuffer->pBuffer;
-    inputBuffer->nFilledLen = resizeOutputBuffer->nFilledLen;
-    
-    error = OMX_EmptyThisBuffer(encoder, inputBuffer);
-    OMX_TRACE(error);
-   
-    error = OMX_FillThisBuffer(encoder, outputBuffer);
-    OMX_TRACE(error);
- 
-    PORT_CHECK();
-    
-}
-
 
 
 OMX_ERRORTYPE 
