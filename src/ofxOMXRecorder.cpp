@@ -6,6 +6,7 @@
 ofxOMXRecorder::ofxOMXRecorder()
 {
     resetValues();
+    canTakeFrame = false;
 }
 
 void ofxOMXRecorder::resetValues()
@@ -13,7 +14,7 @@ void ofxOMXRecorder::resetValues()
     encoder = NULL;
     inputBuffer = NULL;
     outputBuffer = NULL;
-    
+    listener = NULL;
     pixelSize = 0;
     frameCounter = 0;
     stopRequested = false;
@@ -162,16 +163,9 @@ void ofxOMXRecorder::setup(ofxOMXRecorderSettings settings_)
     error = OMX_SetParameter(encoder, OMX_IndexParamVideoPortFormat, &encodingFormat);
     OMX_TRACE(error);
 
+    setKeyFrameInterval(settings.keyFrameInterval);
     
-    OMX_PARAM_U32TYPE keyFrameIntervalConfig;
-    OMX_INIT_STRUCTURE(keyFrameIntervalConfig);
-    keyFrameIntervalConfig.nPortIndex = VIDEO_ENCODE_OUTPUT_PORT;
-    error = OMX_GetParameter(encoder, OMX_IndexConfigBrcmVideoIntraPeriod, &keyFrameIntervalConfig);
-    OMX_TRACE(error);
-    ofLogVerbose(__func__) << "keyFrameIntervalConfig.nU32: " << keyFrameIntervalConfig.nU32;
-    keyFrameIntervalConfig.nU32 = settings.keyFrameInterval;
-    error = OMX_SetParameter(encoder, OMX_IndexConfigBrcmVideoIntraPeriod, &keyFrameIntervalConfig);
-    OMX_TRACE(error);
+   
 
     
     //Set encoder to Idle
@@ -192,6 +186,19 @@ void ofxOMXRecorder::setup(ofxOMXRecorderSettings settings_)
    
         
 }
+void ofxOMXRecorder::setKeyFrameInterval(int keyFrameInterval)
+{
+    settings.keyFrameInterval = keyFrameInterval;
+    OMX_PARAM_U32TYPE keyFrameIntervalConfig;
+    OMX_INIT_STRUCTURE(keyFrameIntervalConfig);
+    keyFrameIntervalConfig.nPortIndex = VIDEO_ENCODE_OUTPUT_PORT;
+    OMX_ERRORTYPE error = OMX_GetParameter(encoder, OMX_IndexConfigBrcmVideoIntraPeriod, &keyFrameIntervalConfig);
+    OMX_TRACE(error);
+    keyFrameIntervalConfig.nU32 = settings.keyFrameInterval;
+    error = OMX_SetParameter(encoder, OMX_IndexConfigBrcmVideoIntraPeriod, &keyFrameIntervalConfig);
+    OMX_TRACE(error);
+}
+
 
 bool ofxOMXRecorder::isRecording()
 {
@@ -229,7 +236,7 @@ void ofxOMXRecorder::startRecording(string absoluteFilePath_) //default ""
     outputBuffer->nFlags = 0;
     OMX_ERRORTYPE error = OMX_SendCommand(encoder, OMX_CommandStateSet, OMX_StateExecuting, NULL);
     OMX_TRACE(error);
-    
+    canTakeFrame = true;
 }
 
 void ofxOMXRecorder::stopRecording()
@@ -252,7 +259,9 @@ void ofxOMXRecorder::update(unsigned char* pixels)
     {
         return;
     }
-    
+    canTakeFrame = false;
+    ofLogNotice(__func__) << frameCounter;
+
     inputBuffer->pBuffer = pixels;
     inputBuffer->nFilledLen = pixelSize;
     //ofLogVerbose(__func__) << "inputBuffer: " << GetBufferHeaderString(inputBuffer);
@@ -297,6 +306,11 @@ void ofxOMXRecorder::onFillBuffer()
     {
         frameCounter++;
         recordingFileBuffer.append((const char*) outputBuffer->pBuffer + outputBuffer->nOffset, outputBuffer->nFilledLen);
+        canTakeFrame = true;
+        if(listener)
+        {
+            listener->onFrameRecorded();
+        }
     }
 }
 

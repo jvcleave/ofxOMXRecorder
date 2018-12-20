@@ -2,7 +2,12 @@
 
 #include "OMX_Maps.h"
 
-
+class ofxOMXRecorderListener
+{
+public:
+    virtual void onFrameRecorded()=0;
+    
+};
 class ofxOMXRecorderSettings
 {
 public:
@@ -20,7 +25,7 @@ public:
         width = 1280;
         height = 720;
         colorFormat = GL_RGBA;
-        fps = 30;
+        fps = 25;
         bitrateMegabytesPerSecond = 2.0;
         keyFrameInterval = 60;
         enablePrettyFileName = true;
@@ -34,7 +39,7 @@ public:
 
     ofxOMXRecorder();
     ~ofxOMXRecorder();
-
+    ofxOMXRecorderListener* listener;
     void setup(ofxOMXRecorderSettings);
     void update(unsigned char* pixels);
 
@@ -44,6 +49,7 @@ public:
     
     vector<ofFile>recordings;
     string createFileName();
+    void setKeyFrameInterval(int);
     
     int getFrameCounter()
     {
@@ -52,8 +58,7 @@ public:
     
     void close();
     
-private:
-    
+    bool canTakeFrame;
     bool isOpen;
     void resetValues();
     void teardown();

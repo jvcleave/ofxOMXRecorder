@@ -11,3 +11,4 @@ bin/ofxRPiCameraVideoGrabber
 bin/data/*.mp4
 example-*/bin/data/savedImages
 example-*/bin/data/OF_SAVE.png
+.smbdelete*
