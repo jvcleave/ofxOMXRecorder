@@ -11,7 +11,83 @@
 #include <IL/OMX_Broadcom.h>
 
 
+struct FilterParam
+{
+    string label="";
+    int index=0;
+    int min=0;
+    int max=0;
+    int defaultValue=0;
+};
 
+class FilterParamConfig
+{
+public:
+    string name;
+    vector<FilterParam> params;
+    
+    FilterParamConfig()
+    {
+        name="";
+    }
+    void addParam(string label, int min, int max, int defaultValue)
+    {
+        FilterParam param;
+        param.label = label;
+        param.index = params.size();
+        param.min = min;
+        param.max = max;
+        param.defaultValue = defaultValue;
+        params.push_back(param);
+    }
+    vector<int> getParams()
+    {
+        vector<int> result;
+        for(size_t i=0; i<params.size(); i++)
+        {
+            result.push_back(params[i].defaultValue);
+        }
+        return result;
+    }
+    
+    void fromJSON(ofJson& json)
+    {
+        name = json["name"];
+        ofJson paramsJSON = json["params"];
+        
+        params.resize(paramsJSON.size());
+        
+        for (auto itr : paramsJSON) 
+        {
+            FilterParam param;
+            param.label = itr["label"];
+            param.index = itr["index"];
+            param.min = itr["max"];
+            param.max = itr["min"];
+            param.defaultValue = itr["defaultValue"];
+            
+            params[param.index] = param;
+            
+        }
+    }
+    ofJson toJSON()
+    {
+        ofJson json;
+        json["name"]=name;
+        
+        for(size_t i=0; i<params.size(); i++)
+        {
+            ofJson paramJSON;
+            paramJSON["label"] = params[i].label;
+            paramJSON["index"] = params[i].index;
+            paramJSON["min"] = params[i].min;
+            paramJSON["max"] = params[i].max;
+            paramJSON["defaultValue"] = params[i].defaultValue;
+            json["params"][i]=paramJSON; 
+        }
+        return json;
+    }
+};
 
 class OMX_Maps
 {
@@ -21,6 +97,10 @@ public:
         static OMX_Maps    instance;
         return instance;
     }
+    
+    
+    vector<FilterParamConfig> filterParamConfigs;
+
     
     map<OMX_DYNAMICRANGEEXPANSIONMODETYPE, int> dreTypes;
     
@@ -270,7 +350,97 @@ public:
     
     map<EGLint, string> eglErrors;
     
-private:	
+
+
+	
+    
+    FilterParamConfig createFilterParamConfig(OMX_IMAGEFILTERTYPE imageFilter)
+    {
+        FilterParamConfig filterParamConfig;
+        filterParamConfig.name = getImageFilter(imageFilter);
+        
+        switch (imageFilter) 
+        {
+            case OMX_ImageFilterSolarize:
+            {
+                //Linear mapping of [0,x0] to [0,y0>] and [x0,255] to [y1,y2]. Default is "128 128 128 0".
+                filterParamConfig.addParam("doYUV", 0, 1, 0);
+                filterParamConfig.addParam("x0", 0, 255, 128);
+                filterParamConfig.addParam("y0", 0, 255, 128);
+                filterParamConfig.addParam("y1", 0, 255, 128);
+                filterParamConfig.addParam("y2", 0, 255, 0);
+                break;
+            }
+            case OMX_ImageFilterSharpen:
+            {
+                //sz size of filter, either 1 or 2. str strength of filter. th threshold of filter. Default is "1 40 20".
+                filterParamConfig.addParam("size", 1, 2, 1);
+                filterParamConfig.addParam("strength", 0, 255, 40);
+                filterParamConfig.addParam("threshold", 0, 255, 20);                    
+                break;
+            }
+            case OMX_ImageFilterFilm:
+            {
+                
+                /*
+                 str strength of effect. u sets u to constant value. v sets v to constant value. Default is "24".
+                 */
+                filterParamConfig.addParam("strength", 0, 255, 1);
+                filterParamConfig.addParam("u", 0, 255, 24);
+                filterParamConfig.addParam("v", 0, 255, 24);     
+                break;
+            }
+            case OMX_ImageFilterBlur:
+            {
+                filterParamConfig.addParam("strength", 0, 2, 2);
+                break;
+            }
+            case OMX_ImageFilterSaturation:
+            {
+                //str strength of effect, in 8.8 fixed point format. u/v value differences from 128 are multiplied by str. Default is "272".
+                filterParamConfig.addParam("strength", 0, 1024, 272);
+                break;
+            }
+            case OMX_ImageFilterColourBalance:
+            {
+                filterParamConfig.addParam("lens", 0, 255, 0);
+                filterParamConfig.addParam("r", 0, 255, 255);
+                filterParamConfig.addParam("g", 0, 255, 255);
+                filterParamConfig.addParam("b", 0, 255, 255);   
+                filterParamConfig.addParam("u", 0, 255, 0);    
+                filterParamConfig.addParam("v", 0, 255, 0);    
+                break;
+            }
+            case OMX_ImageFilterColourSwap:
+            {
+                filterParamConfig.addParam("direction", 0, 1, 0);  
+                break;
+            }
+            case OMX_ImageFilterColourPoint:
+            {
+                filterParamConfig.addParam("quadrant", 0, 3, 0);  
+                break;
+            }
+            case OMX_ImageFilterPosterise:
+            {
+                filterParamConfig.addParam("steps", 0, 32, 4);  
+                break;
+            }
+            case OMX_ImageFilterSketch:
+            case OMX_ImageFilterWatercolor:
+            {
+                filterParamConfig.addParam("u", 0, 255, 24);
+                filterParamConfig.addParam("v", 0, 255, 24);  
+                break;
+            }
+            default:
+            {
+                break;
+            }
+        }
+        return filterParamConfig;
+    }    
+private:    
     OMX_Maps()
     {
         
@@ -321,7 +491,7 @@ private:
         collectNames<OMX_MIRRORTYPE>(mirrors, mirrorNames, mirrorTypes);
         
         
-        imageFilters["None"] = OMX_ImageFilterNone;
+		imageFilters["None"] = OMX_ImageFilterNone;
         imageFilters["Noise"] = OMX_ImageFilterNoise;
         imageFilters["Emboss"] = OMX_ImageFilterEmboss;
         imageFilters["Negative"] = OMX_ImageFilterNegative;
@@ -346,11 +516,19 @@ private:
         imageFilters["Posterise"] = OMX_ImageFilterPosterise;
         imageFilters["ColourBalance"] = OMX_ImageFilterColourBalance;
         imageFilters["Cartoon"] = OMX_ImageFilterCartoon;
-        
         collectNames<OMX_IMAGEFILTERTYPE>(imageFilters, imageFilterNames, imageFilterTypes);
         
         
-        
+        for (auto& it : imageFilters)
+        {            
+            FilterParamConfig filterParamConfig = createFilterParamConfig(it.second);
+            if(!filterParamConfig.params.empty())
+            {
+                filterParamConfigs.push_back(filterParamConfig);
+                
+                //ofLogNotice(__func__) << filterParamConfig.name << " HAS " << filterParamConfig.params.size() << " PARAMS";
+            }
+        }     
         
         whiteBalance["Off"] = OMX_WhiteBalControlOff;
         whiteBalance["Auto"] = OMX_WhiteBalControlAuto;
@@ -640,7 +818,6 @@ private:
 };
 
 
-
 static
 string  GetOMXStateString(OMX_STATETYPE type)
 {
@@ -682,12 +859,35 @@ string  GetImageFilterString(OMX_IMAGEFILTERTYPE type)
     return OMX_Maps::getInstance().imageFilterTypes[type];
 };
 
+static
+ofJson GetFilterParamConfigJson()
+{
+    ofJson json;
+    for(size_t i=0; i<OMX_Maps::getInstance().filterParamConfigs.size(); i++)
+    {
+        ofJson filterParamConfigJSON = OMX_Maps::getInstance().filterParamConfigs[i].toJSON();
+        json["filterParamConfigs"][i] = filterParamConfigJSON;   
+    }
+    return json;
+}
 
 static
 OMX_IMAGEFILTERTYPE  GetImageFilter(string name)
 {
     return OMX_Maps::getInstance().imageFilters[name];
 };
+
+static  
+FilterParamConfig GetFilterParamConfig(OMX_IMAGEFILTERTYPE imageFilter, vector<int>& params)
+{
+    FilterParamConfig filterParamConfig = OMX_Maps::getInstance().createFilterParamConfig(imageFilter);
+    for(size_t i=0; i<params.size(); i++)
+    {
+        filterParamConfig.params[i].defaultValue = params[i];
+        
+    }
+    return filterParamConfig;
+}
 
 
 static
@@ -858,26 +1058,32 @@ string GetPortDefinitionString(OMX_PARAM_PORTDEFINITIONTYPE def)
     info << "bEnabled: " << def.bEnabled << endl;
     info << "bPopulated: " << def.bPopulated << endl;
     info << "bBuffersContiguous: " << def.bBuffersContiguous << endl;
-    
+
     if (def.eDomain == OMX_PortDomainVideo)
     {
-        info << "video nFrameWidth: " << def.format.video.nFrameWidth << endl;
-        info << "video nFrameHeight: " << def.format.video.nFrameHeight << endl;
-        info << "video nStride: " << def.format.video.nStride << endl;
-        info << "video nSliceHeight: " << def.format.video.nSliceHeight << endl;
-        info << "video xFramerate: " << (def.format.video.xFramerate >> 16) << endl;
-        info << "video eCompressionFormat: "<< GetVideoCodingString(def.format.video.eCompressionFormat) << endl;
-        info << "video eColorFormat: " << GetColorFormatString(def.format.video.eColorFormat) << endl;
+        info << "eDomain: " << "OMX_PortDomainVideo" << endl;
     }
     if (def.eDomain == OMX_PortDomainImage)
     {
-        info << "image nFrameWidth: " << def.format.image.nFrameWidth << endl;
-        info << "image nFrameHeight: " << def.format.image.nFrameHeight << endl;
-        info << "image nStride: " << def.format.image.nStride << endl;
-        info << "image nSliceHeight: " << def.format.image.nSliceHeight << endl;
-        info << "image coding type: " << GetImageCodingString(def.format.image.eCompressionFormat) << endl;
-        info << "image eColorFormat: " << GetColorFormatString(def.format.image.eColorFormat) << endl;
+        info << "eDomain: " << "OMX_PortDomainImage" << endl;
     }
+    
+    info << "video nFrameWidth: " << def.format.video.nFrameWidth << endl;
+    info << "video nFrameHeight: " << def.format.video.nFrameHeight << endl;
+    info << "video nStride: " << def.format.video.nStride << endl;
+    info << "video nSliceHeight: " << def.format.video.nSliceHeight << endl;
+    info << "video nBitrate: " << def.format.video.nBitrate << endl;
+    info << "video xFramerate: " << (def.format.video.xFramerate >> 16) << endl;
+    info << "video bFlagErrorConcealment: " <<  def.format.video.bFlagErrorConcealment << endl;
+    info << "video eCompressionFormat: "<< GetVideoCodingString(def.format.video.eCompressionFormat) << endl;
+    info << "video eColorFormat: " << GetColorFormatString(def.format.video.eColorFormat) << endl;
+    info << endl;
+    info << "image nFrameWidth: " << def.format.image.nFrameWidth << endl;
+    info << "image nFrameHeight: " << def.format.image.nFrameHeight << endl;
+    info << "image nStride: " << def.format.image.nStride << endl;
+    info << "image nSliceHeight: " << def.format.image.nSliceHeight << endl;
+    info << "image eCompressionFormat: " << GetImageCodingString(def.format.image.eCompressionFormat) << endl;
+    info << "image eColorFormat: " << GetColorFormatString(def.format.image.eColorFormat) << endl;
     return info.str();
 }
 static 
@@ -917,18 +1123,14 @@ memset(&(a), 0, sizeof(a)); \
 (a).nVersion.s.nRevision = OMX_VERSION_REVISION; \
 (a).nVersion.s.nStep = OMX_VERSION_STEP
 
-#define OMX_INIT_STRUCTURE_OLD(a) \
-memset(&(a), 0, sizeof(a)); \
-(a).nSize = sizeof(a); \
-(a).nVersion.s.nVersionMajor = OMX_VERSION_MAJOR; \
-(a).nVersion.s.nVersionMinor = OMX_VERSION_MINOR; \
-(a).nVersion.s.nRevision = 0; \
-(a).nVersion.s.nStep = OMX_VERSION_STEP
+#define OMX_IMAGE_FX (OMX_STRING)"OMX.broadcom.image_fx"
+#define IMAGE_FX_INPUT_PORT 190
+#define IMAGE_FX_OUTPUT_PORT 191
 
 
 #define OMX_CAMERA (OMX_STRING)"OMX.broadcom.camera"
-#define CAMERA_PREVIEW_PORT		70
-#define CAMERA_OUTPUT_PORT		71
+#define CAMERA_PREVIEW_PORT        70
+#define CAMERA_OUTPUT_PORT        71
 #define CAMERA_STILL_OUTPUT_PORT 72
 
 #define OMX_IMAGE_ENCODER (OMX_STRING)"OMX.broadcom.image_encode"
@@ -962,14 +1164,28 @@ memset(&(a), 0, sizeof(a)); \
 #define VIDEO_SPLITTER_OUTPUT_PORT4 254
 
 #define OMX_VIDEO_RENDER (OMX_STRING)"OMX.broadcom.video_render"
-#define VIDEO_RENDER_INPUT_PORT	90
+#define VIDEO_RENDER_INPUT_PORT    90
 
 #define OMX_EGL_RENDER (OMX_STRING)"OMX.broadcom.egl_render"
-#define EGL_RENDER_INPUT_PORT	220
-#define EGL_RENDER_OUTPUT_PORT	221
+#define EGL_RENDER_INPUT_PORT    220
+#define EGL_RENDER_OUTPUT_PORT    221
 
 #define OMX_NULL_SINK (OMX_STRING)"OMX.broadcom.null_sink"
 #define NULL_SINK_INPUT_PORT 240
+
+#define OMX_VIDEO_SCHEDULER (OMX_STRING)"OMX.broadcom.video_scheduler"
+#define VIDEO_SCHEDULER_INPUT_PORT 10
+#define VIDEO_SCHEDULER_OUTPUT_PORT 11
+#define VIDEO_SCHEDULER_CLOCK_PORT 12
+
+#define OMX_CLOCK (OMX_STRING)"OMX.broadcom.clock"
+#define OMX_CLOCK_OUTPUT_PORT_0 80
+#define OMX_CLOCK_OUTPUT_PORT_1 81
+#define OMX_CLOCK_OUTPUT_PORT_2 82
+#define OMX_CLOCK_OUTPUT_PORT_3 83
+#define OMX_CLOCK_OUTPUT_PORT_4 84
+#define OMX_CLOCK_OUTPUT_PORT_5 85
+
 
 //really a guess - higher values didn't seem to make any difference
 
@@ -1008,6 +1224,14 @@ string omxErrorToString(OMX_ERRORTYPE error)
 #define OMX_LOG_LEVEL OMX_LOG_LEVEL_ERROR_ONLY
 #endif
 
+#define TRACE_LINE ofLogNotice(__func__) << __LINE__;
+
+#define LINE_TIME_START int start = ofGetElapsedTimeMillis();
+#define LINE_TIME_END(x) ofLog() << x << " TOOK " << ofGetElapsedTimeMillis()-start << "MS";
+
+
+
+
 static  
 void logOMXError(OMX_ERRORTYPE error, string comments="", string functionName="", int lineNumber=0)
 {
@@ -1040,7 +1264,7 @@ void logOMXError(OMX_ERRORTYPE error, string comments="", string functionName=""
         }
         case OMX_LOG_LEVEL_VERBOSE:
         {
-            ofLogError(functionName)  << commentLine << omxErrorToString(error);
+            ofLogVerbose(functionName)  << lineNumber << " : " << omxErrorToString(error);
             break;
         }
         default:
@@ -1051,56 +1275,7 @@ void logOMXError(OMX_ERRORTYPE error, string comments="", string functionName=""
     
 }
 
-static
-void PrintPortDef(OMX_PARAM_PORTDEFINITIONTYPE portDefinition)
-{
-    stringstream info;
-    
-    //info << "cMIMEType: "		<< portDefinition.format.video.cMIMEType << endl;
-    //info << "pNativeRender: "   << portDefinition.format.video.pNativeRender << endl;
-    
-    
-    
-    
-    //info << "nVersion: "		<< portDefinition.nVersion << endl;
-    info << "nPortIndex: "		<< portDefinition.nPortIndex << endl;
-    info << "eDir: "            << portDefinition.eDir << endl;
-    info << "nBufferCountActual: "  << portDefinition.nBufferCountActual << endl;
-    info << "nBufferCountMin: "     << portDefinition.nBufferCountMin << endl;
-    info << "nBufferSize: "         << portDefinition.nBufferSize << endl;
-    info << "bEnabled: "            << portDefinition.bEnabled << endl;
-    info << "bPopulated: "          << portDefinition.bPopulated << endl;
-    
-    
-    info << "nFrameWidth: "		<< portDefinition.format.video.nFrameWidth << endl;
-    info << "nFrameHeight: "	<< portDefinition.format.video.nFrameHeight << endl;
-    info << "nStride: "			<< portDefinition.format.video.nStride << endl;
-    info << "nSliceHeight: "    << portDefinition.format.video.nSliceHeight << endl;
-    info << "nBitrate: "        << portDefinition.format.video.nBitrate << endl;
-    info << "xFramerate: "		<< (portDefinition.format.video.xFramerate >> 16) << endl;
-    info << "bFlagErrorConcealment: "   << portDefinition.format.video.bFlagErrorConcealment << endl;
-    info << "eCompressionFormat: "      << GetVideoCodingString(portDefinition.format.video.eCompressionFormat) << endl;
-    info << "eColorFormat: "            << GetColorFormatString(portDefinition.format.video.eColorFormat) << endl;
-    info << "pNativeWindow: "           << portDefinition.format.video.pNativeWindow << endl;
-    
-    ofLogVerbose(__func__) << info.str();
-    
-    /*
-     
-     OMX_STRING cMIMEType;
-     OMX_NATIVE_DEVICETYPE pNativeRender;
-     OMX_U32 nFrameWidth;
-     OMX_U32 nFrameHeight;
-     OMX_S32 nStride;
-     OMX_U32 nSliceHeight;
-     OMX_U32 nBitrate;
-     OMX_U32 xFramerate;
-     OMX_BOOL bFlagErrorConcealment;
-     OMX_VIDEO_CODINGTYPE eCompressionFormat;
-     OMX_COLOR_FORMATTYPE eColorFormat;
-     OMX_NATIVE_WINDOWTYPE pNativeWindow;
-     */
-}
+
 
 
 static  
@@ -1202,6 +1377,31 @@ float fromQ16(float n)
 { 
     return n*(1/65536.0); 
 }
+
+
+static 
+OMX_ERRORTYPE SetComponentState(OMX_HANDLETYPE handle, OMX_STATETYPE state)
+{
+    OMX_ERRORTYPE error = OMX_SendCommand(handle, OMX_CommandStateSet, state, NULL);
+    OMX_TRACE(error);
+    return error;
+}
+
+
+static
+string PrintPortDefinition(OMX_HANDLETYPE handle, int port)
+{
+    OMX_ERRORTYPE error = OMX_ErrorNone;
+    
+    OMX_PARAM_PORTDEFINITIONTYPE portDef;
+    OMX_INIT_STRUCTURE(portDef);
+    portDef.nPortIndex = port;
+    
+    error = OMX_GetParameter(handle, OMX_IndexParamPortDefinition, &portDef);
+    
+    return GetPortDefinitionString(portDef);
+}
+
 
 static
 OMX_ERRORTYPE DisableAllPortsForComponent(OMX_HANDLETYPE* handle, string componentName="")
@@ -1460,6 +1660,25 @@ void ProbeImageColorFormats(OMX_HANDLETYPE handle,
     }
 }
 
+
+static
+OMX_ERRORTYPE EnableComponentPort(OMX_HANDLETYPE handle, int port)
+{
+    OMX_ERRORTYPE error = OMX_ErrorNone;
+    error = OMX_SendCommand(handle, OMX_CommandPortEnable, port, NULL);
+    OMX_TRACE(error);
+    return error;
+}
+
+static
+OMX_ERRORTYPE DisableComponentPort(OMX_HANDLETYPE handle, int port)
+{
+    OMX_ERRORTYPE error = OMX_ErrorNone;
+    error = OMX_SendCommand(handle, OMX_CommandPortDisable, port, NULL);
+    OMX_TRACE(error);
+    return error;
+}
+
 static
 OMX_ERRORTYPE FlushOMXComponent(OMX_HANDLETYPE handle, int port)
 {
@@ -1468,5 +1687,366 @@ OMX_ERRORTYPE FlushOMXComponent(OMX_HANDLETYPE handle, int port)
     OMX_TRACE(error);
     return error;
 }
+
+static 
+bool IsPortEnabled(OMX_HANDLETYPE handle, int port)
+{
+    OMX_ERRORTYPE error;
+    bool result = false;
+    OMX_PARAM_PORTDEFINITIONTYPE portdef;
+    OMX_INIT_STRUCTURE(portdef);
+    portdef.nPortIndex = port;
+    
+    error = OMX_GetParameter(handle, OMX_IndexParamPortDefinition, &portdef);
+    OMX_TRACE(error);
+    if(portdef.bEnabled == OMX_TRUE)
+    {
+        result = true;
+    }
+    return result;
+}
+
+static 
+bool IsPortDisabled(OMX_HANDLETYPE handle, int port)
+{
+    OMX_ERRORTYPE error;
+    bool result = false;
+    OMX_PARAM_PORTDEFINITIONTYPE portdef;
+    OMX_INIT_STRUCTURE(portdef);
+    portdef.nPortIndex = port;
+    
+    error = OMX_GetParameter(handle, OMX_IndexParamPortDefinition, &portdef);
+    OMX_TRACE(error);
+    if(portdef.bEnabled == OMX_FALSE)
+    {
+        result = true;
+    }
+    return result;
+}
+
+static
+OMX_ERRORTYPE WaitForPortEnable(OMX_HANDLETYPE component, int port)
+{
+    int numAttempts = 0;
+    OMX_ERRORTYPE error = EnableComponentPort(component, port);
+    OMX_TRACE(error);
+    
+    if(error == OMX_ErrorNone)
+    {
+        bool ready = false;
+        while (!ready)
+        {
+            ready = IsPortEnabled(component, port);
+            ofSleepMillis(20);
+            numAttempts++;
+            if(numAttempts >= 10)
+            {
+                ready = true;
+                ofLogError(__func__) << port << " TIMED OUT";
+            }
+        }
+    }
+    
+    return error;
+}
+
+static
+OMX_ERRORTYPE WaitForPortDisable(OMX_HANDLETYPE component, int port)
+{
+    int numAttempts = 0;
+    OMX_ERRORTYPE error = DisableComponentPort(component, port);
+    OMX_TRACE(error);
+    
+    if(error == OMX_ErrorNone)
+    {
+        bool ready = false;
+        while (!ready)
+        {
+            ready = !IsPortEnabled(component, port);
+            ofSleepMillis(20);
+            numAttempts++;
+            if(numAttempts >= 10)
+            {
+                ready = true;
+                ofLogError(__func__) << port << " TIMED OUT";
+            }
+        }
+    }
+    
+    return error;
+}
+
+static
+OMX_ERRORTYPE WaitForState(OMX_HANDLETYPE component, OMX_STATETYPE state)
+{
+    int numAttempts = 0;
+    
+    OMX_ERRORTYPE error = SetComponentState(component, state);
+    OMX_TRACE(error);  
+    if(error == OMX_ErrorSameState) return error;
+    
+    if(error == OMX_ErrorNone)
+    {
+        bool ready = false;
+        while (!ready)
+        {
+            
+            OMX_STATETYPE currentState;
+            error = OMX_GetState(component, &currentState);
+            OMX_TRACE(error);    
+            if(currentState == state)
+            {
+                ready = true;
+                break;
+            }else
+            {
+                error = SetComponentState(component, state);
+                OMX_TRACE(error);
+            }
+            ofSleepMillis(20);
+            numAttempts++;
+            //ofLogNotice(__func__) << GetOMXStateString(state) << " ATTEMPT # " <<  numAttempts;
+            if(numAttempts >= 10)
+            {
+                ready = true;
+                ofLogError(__func__) << " TIMED OUT SETTING STATE" << GetOMXStateString(state);
+            }
+        }
+    }
+    
+    return error;
+}
+static
+uint32_t omxcam_round (uint32_t value, uint32_t multiplier)
+{
+    //Assumed that the rounding value is a power of 2
+    return (value + multiplier - 1) & ~(multiplier - 1);
+}
+
+static 
+void PrintSensorModes(OMX_HANDLETYPE camera)
+{
+    OMX_ERRORTYPE error;
+    
+    OMX_CONFIG_CAMERASENSORMODETYPE sensorConfig;
+    OMX_INIT_STRUCTURE(sensorConfig);
+    sensorConfig.nPortIndex = OMX_ALL;
+    //sensorConfig.nModeIndex = 0;
+    error =  OMX_GetParameter(camera, OMX_IndexConfigCameraSensorModes, &sensorConfig);
+    OMX_TRACE(error);
+    if(error == OMX_ErrorNone)
+    {
+        stringstream sensorInfo;
+        sensorInfo << "nModeIndex: "  << sensorConfig.nModeIndex << endl;
+        sensorInfo << "nNumModes: "  << sensorConfig.nNumModes << endl;
+        sensorInfo << "nWidth: "  << sensorConfig.nWidth << endl;
+        sensorInfo << "nHeight: "  << sensorConfig.nHeight << endl;
+        sensorInfo << "nPaddingRight: "  << sensorConfig.nPaddingRight << endl;
+        sensorInfo << "eColorFormat: "  << OMX_Maps::getInstance().getColorFormat(sensorConfig.eColorFormat) << endl;
+        sensorInfo << "nFrameRateMax: "  << sensorConfig.nFrameRateMax << endl;
+        sensorInfo << "nFrameRateMin: "  << sensorConfig.nFrameRateMin << endl;
+        
+        ofLogVerbose(__func__) << "sensorInfo: \n" << sensorInfo.str();
+    }
+    
+    
+    
+    int numModes = sensorConfig.nNumModes;
+    for (int i = 0; i < numModes; i++) 
+    {
+        sensorConfig.nModeIndex = i;
+        error = OMX_GetParameter(camera, OMX_IndexConfigCameraSensorModes, &sensorConfig);
+        OMX_TRACE(error);
+        stringstream sensorInfo;
+        sensorInfo << "nModeIndex: "  << sensorConfig.nModeIndex << endl;
+        sensorInfo << "nWidth: "  << sensorConfig.nWidth << endl;
+        sensorInfo << "nHeight: "  << sensorConfig.nHeight << endl;
+        sensorInfo << "nPaddingRight: "  << sensorConfig.nPaddingRight << endl;
+        sensorInfo << "eColorFormat: "  << OMX_Maps::getInstance().getColorFormat(sensorConfig.eColorFormat) << endl;
+        sensorInfo << "nFrameRateMax: "  << sensorConfig.nFrameRateMax << endl;
+        sensorInfo << "nFrameRateMin: "  << sensorConfig.nFrameRateMin << endl;
+        sensorInfo << "FrameRateMax: " << (sensorConfig.nFrameRateMax / 256.0f) << endl;
+        sensorInfo << "FrameRateMin: " << (sensorConfig.nFrameRateMin / 256.0f) << endl;
+        ofLogVerbose(__func__) << "sensorInfo "<< i << " : \n" << sensorInfo.str();
+    }
+}
+
+
+static
+string DebugEventHandlerString (OMX_HANDLETYPE hComponent, OMX_EVENTTYPE eEvent, OMX_U32 nData1, OMX_U32 nData2, OMX_PTR pEventData)
+{
+    
+    stringstream info;
+    info << GetEventString(eEvent) << endl;
+    switch (eEvent)
+    {
+        case OMX_EventParamOrConfigChanged:
+        {
+            break;
+        }
+        case OMX_EventCmdComplete:
+        {
+            OMX_COMMANDTYPE command = (OMX_COMMANDTYPE)nData1;
+            string commandString = GetOMXCommandString(command);
+            
+            info << "command: "  << commandString << endl;
+
+            switch(command)
+            {
+                case OMX_CommandStateSet:
+                {
+                    OMX_STATETYPE state = (OMX_STATETYPE)nData2;
+                    info << "state: "  << GetOMXStateString(state) << endl;
+
+                    switch (state)
+                    {
+                        case OMX_StateInvalid:
+                        case OMX_StateLoaded:
+                        case OMX_StateIdle:
+                        case OMX_StateExecuting:
+                        case OMX_StatePause:
+                        case OMX_StateWaitForResources:
+                        default:
+                        {
+                            break;
+                        }
+                    }
+                    break;
+                }
+                
+                case OMX_CommandPortDisable:
+                case OMX_CommandPortEnable:
+                case OMX_CommandFlush:
+                {
+                    info << "port: "  << nData2 << endl;
+                    break;
+
+                }
+                case OMX_CommandMarkBuffer:
+                case OMX_CommandKhronosExtensions:
+                case OMX_CommandVendorStartUnused:
+                case OMX_CommandMax:
+                default:
+                {
+                    //ofLogNotice("onEvent") << GetName() << " : " << commandString << " port: " << (int)nData2;
+                    break;
+                }
+            }
+            break;
+        }
+        case OMX_EventBufferFlag:
+        {
+            break;
+        }
+        case OMX_EventPortSettingsChanged:
+        case OMX_EventMark:
+        case OMX_EventResourcesAcquired:
+        case OMX_EventError:
+        {
+            OMX_ERRORTYPE error = (OMX_ERRORTYPE)nData1;
+            string errorString = GetOMXErrorString(error);
+            
+            info << "error: "  << errorString << " nData1: " << nData1 << " nData2: " << nData2 << endl;
+            switch(error)
+            {
+                    
+                case OMX_ErrorStreamCorrupt:
+                case OMX_ErrorSameState:
+                case OMX_ErrorInsufficientResources:
+                case OMX_ErrorFormatNotDetected:
+                case OMX_ErrorPortUnpopulated:
+                case OMX_ErrorUnsupportedSetting:
+                default:
+                {
+                    break;
+                }
+            }
+            break;
+        }
+        default:
+        {
+            //ofLogError("onEvent") << GetName() << "Unknown eEvent : " << eEvent << " nData1: " << nData1 << " nData2: " << nData2;
+            break;
+        }
+    }
+    
+    return info.str();
+}
+
+static
+string PrintBuffer(OMX_BUFFERHEADERTYPE* pBuffer)
+{
+    stringstream info;
+    info << "nSize: " << pBuffer->nSize << endl;
+
+    info << "nAllocLen: " << pBuffer->nAllocLen << endl;
+    info << "nFilledLen: " << pBuffer->nFilledLen << endl;
+    info << "nOffset: " << pBuffer->nOffset << endl;
+    info << "nOutputPortIndex: " << pBuffer->nOutputPortIndex << endl;
+    info << "nInputPortIndex: " << pBuffer->nInputPortIndex << endl;
+    info << "nFlags: " << pBuffer->nFlags << endl;
+
+    
+#if 0
+    //info << "nVersion: " << pBuffer->nVersion << endl;
+    //info << "pBuffer: " << pBuffer->pBuffer << endl;
+    info << "pAppPrivate: " << pBuffer->pAppPrivate << endl;
+    info << "pPlatformPrivate: " << pBuffer->pPlatformPrivate << endl;
+    info << "pInputPortPrivate: " << pBuffer->pInputPortPrivate << endl;
+    info << "pOutputPortPrivate: " << pBuffer->pOutputPortPrivate << endl;
+    info << "hMarkTargetComponent: " << pBuffer->hMarkTargetComponent << endl;
+    info << "pMarkData: " << pBuffer->pMarkData << endl;
+    info << "nTickCount: " << pBuffer->nTickCount << endl;
+    //info << "nTimeStamp: " << pBuffer->nTimeStamp << endl;
+
+#endif
+    return info.str();
+#if 0
+    OMX_U32 nSize;              /**< size of the structure in bytes */
+    OMX_VERSIONTYPE nVersion;   /**< OMX specification version information */
+    OMX_U8* pBuffer;            /**< Pointer to actual block of memory 
+                                 that is acting as the buffer */
+    OMX_U32 nAllocLen;          /**< size of the buffer allocated, in bytes */
+    OMX_U32 nFilledLen;         /**< number of bytes currently in the 
+                                 buffer */
+    OMX_U32 nOffset;            /**< start offset of valid data in bytes from
+                                 the start of the buffer */
+    OMX_PTR pAppPrivate;        /**< pointer to any data the application
+                                 wants to associate with this buffer */
+    OMX_PTR pPlatformPrivate;   /**< pointer to any data the platform
+                                 wants to associate with this buffer */ 
+    OMX_PTR pInputPortPrivate;  /**< pointer to any data the input port
+                                 wants to associate with this buffer */
+    OMX_PTR pOutputPortPrivate; /**< pointer to any data the output port
+                                 wants to associate with this buffer */
+    OMX_HANDLETYPE hMarkTargetComponent; /**< The component that will generate a 
+                                          mark event upon processing this buffer. */
+    OMX_PTR pMarkData;          /**< Application specific data associated with 
+                                 the mark sent on a mark event to disambiguate 
+                                 this mark from others. */
+    OMX_U32 nTickCount;         /**< Optional entry that the component and
+                                 application can update with a tick count
+                                 when they access the component.  This
+                                 value should be in microseconds.  Since
+                                 this is a value relative to an arbitrary
+                                 starting point, this value cannot be used 
+                                 to determine absolute time.  This is an
+                                 optional entry and not all components
+                                 will update it.*/
+    OMX_TICKS nTimeStamp;          /**< Timestamp corresponding to the sample 
+                                    starting at the first logical sample 
+                                    boundary in the buffer. Timestamps of 
+                                    successive samples within the buffer may
+                                    be inferred by adding the duration of the 
+                                    of the preceding buffer to the timestamp
+                                    of the preceding buffer.*/
+    OMX_U32     nFlags;           /**< buffer specific flags */
+    OMX_U32 nOutputPortIndex;     /**< The index of the output port (if any) using 
+                                   this buffer */
+    OMX_U32 nInputPortIndex;      /**< The index of the input port (if any) using
+                                   this buffer */
+#endif
+}
+
 
 #endif
