@@ -6,6 +6,9 @@ class ofxOMXRecorderListener
 {
 public:
     virtual void onFrameRecorded()=0;
+    virtual void onRecordStart()=0;
+    virtual void onFileWritten(string filePath)=0;
+
     
 };
 class ofxOMXRecorderSettings
@@ -61,7 +64,8 @@ public:
     bool canTakeFrame;
     bool isOpen;
     void resetValues();
-    void teardown();
+    void createEncoder();
+    void destroyEncoder();
     ofxOMXRecorderSettings settings;
     
     int pixelSize;
@@ -75,9 +79,6 @@ public:
     
     void writeFile();
 
-    void onPortSettingsChanged();
-    void onEmptyBuffer();
-    void onFillBuffer();
     
     OMX_HANDLETYPE encoder;
     OMX_PARAM_PORTDEFINITIONTYPE enablePortBuffers(OMX_HANDLETYPE handle, OMX_BUFFERHEADERTYPE** targetBuffer, int portIndex);
