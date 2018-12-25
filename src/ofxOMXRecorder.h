@@ -17,6 +17,8 @@ public:
     
     int width;
     int height;
+    int outputWidth;
+    int outputHeight;
     int colorFormat;
     int fps;
     float bitrateMegabytesPerSecond;
@@ -25,12 +27,14 @@ public:
     
     ofxOMXRecorderSettings()
     {
-        width = 1280;
-        height = 720;
+        width = 1024;
+        height = 1024;
+        outputWidth = 1280;
+        outputHeight = 720;
         colorFormat = GL_RGBA;
         fps = 25;
         bitrateMegabytesPerSecond = 2.0;
-        keyFrameInterval = 60;
+        keyFrameInterval = 5;
         enablePrettyFileName = true;
     };
 };
@@ -64,7 +68,7 @@ public:
     bool canTakeFrame;
     bool isOpen;
     void resetValues();
-    void createEncoder();
+    //void createEncoder();
     void destroyEncoder();
     ofxOMXRecorderSettings settings;
     
@@ -79,23 +83,52 @@ public:
     
     void writeFile();
 
-    
-    OMX_HANDLETYPE encoder;
-    OMX_PARAM_PORTDEFINITIONTYPE enablePortBuffers(OMX_HANDLETYPE handle, OMX_BUFFERHEADERTYPE** targetBuffer, int portIndex);
+    OMX_HANDLETYPE resizer;
+    OMX_BUFFERHEADERTYPE* resizeInputBuffer;
+    OMX_BUFFERHEADERTYPE* resizeOutputBuffer;
 
-    OMX_BUFFERHEADERTYPE* inputBuffer;
-    OMX_BUFFERHEADERTYPE* outputBuffer;
+    static OMX_ERRORTYPE 
+    resizerEmptyBufferDone(OMX_HANDLETYPE, OMX_PTR, OMX_BUFFERHEADERTYPE*);
     
-    bool bufferAvailable;
-    OMX_PARAM_PORTDEFINITIONTYPE inputPortDefinition;
-    OMX_PARAM_PORTDEFINITIONTYPE outputPortDefinition;
+    static OMX_ERRORTYPE
+    resizerFillBufferDone(OMX_HANDLETYPE,
+                          OMX_PTR,
+                          OMX_BUFFERHEADERTYPE*);
     
     static OMX_ERRORTYPE 
-    encoderEventHandlerCallback(OMX_HANDLETYPE, 
-                                OMX_PTR, 
-                                OMX_EVENTTYPE, 
-                                OMX_U32, OMX_U32, 
-                                OMX_PTR);
+    resizerEventHandlerCallback(OMX_HANDLETYPE hComponent, 
+                                OMX_PTR pAppData, 
+                                OMX_EVENTTYPE event, 
+                                OMX_U32 nData1, OMX_U32 nData2, 
+                                OMX_PTR pEventData){
+        //ofLog() << "resizerEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData);
+
+        return OMX_ErrorNone;
+        
+    }
+    
+    OMX_HANDLETYPE encoder;
+    OMX_BUFFERHEADERTYPE* inputBuffer;
+
+    OMX_PARAM_PORTDEFINITIONTYPE enablePortBuffers(OMX_HANDLETYPE handle, OMX_BUFFERHEADERTYPE** targetBuffer, int portIndex);
+
+    OMX_BUFFERHEADERTYPE* encoderInputBuffer;
+    OMX_BUFFERHEADERTYPE* encoderOutputBuffer;
+    
+    bool bufferAvailable;
+
+    
+    static OMX_ERRORTYPE 
+    encoderEventHandlerCallback(OMX_HANDLETYPE hComponent, 
+                                OMX_PTR pAppData, 
+                                OMX_EVENTTYPE event, 
+                                OMX_U32 nData1, OMX_U32 nData2, 
+                                OMX_PTR pEventData)
+    {
+        ofLog() << "encoderEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData);
+        return OMX_ErrorNone;
+
+    }
     static OMX_ERRORTYPE 
     encoderEmptyBufferDone(OMX_IN OMX_HANDLETYPE, 
                            OMX_IN OMX_PTR, 

@@ -134,7 +134,7 @@ private:
     static OMX_ERRORTYPE 
     encoderEmptyBufferDone(OMX_HANDLETYPE, 
                            OMX_PTR, 
-                           OMX_BUFFERHEADERTYPE*){return OMX_ErrorNone;};
+                           OMX_BUFFERHEADERTYPE*);
     
     static OMX_ERRORTYPE
     encoderFillBufferDone(OMX_HANDLETYPE,
@@ -146,7 +146,7 @@ private:
     static OMX_ERRORTYPE 
     resizerEmptyBufferDone(OMX_HANDLETYPE, 
                            OMX_PTR, 
-                           OMX_BUFFERHEADERTYPE*){return OMX_ErrorNone;};
+                           OMX_BUFFERHEADERTYPE*);
     
     static OMX_ERRORTYPE
     resizerFillBufferDone(OMX_HANDLETYPE,
@@ -159,12 +159,7 @@ private:
                                 OMX_EVENTTYPE, 
                                 OMX_U32, OMX_U32, 
                                 OMX_PTR);
-    void onResizerEmptyBuffer(){};
-    void onResizerFillBuffer();
-    void onResizerPortSettingsChanged(){};
     
-    void onEncoderPortSettingsChanged(){};
-    void onEncoderEmptyBuffer(){};
     void onEncoderFillBuffer();
     int pixelSize;
     ofBuffer fileBuffer;
