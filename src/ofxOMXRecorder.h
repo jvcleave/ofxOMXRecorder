@@ -40,7 +40,7 @@ public:
 };
 
 
-class ofxOMXRecorder
+class ofxOMXRecorder: public ofThread
 {
 public:
 
@@ -82,6 +82,8 @@ public:
     bool finishedRecording;
     
     void writeFile();
+    
+    void threadedFunction();
 
     OMX_HANDLETYPE resizer;
     OMX_BUFFERHEADERTYPE* resizeInputBuffer;
@@ -100,12 +102,7 @@ public:
                                 OMX_PTR pAppData, 
                                 OMX_EVENTTYPE event, 
                                 OMX_U32 nData1, OMX_U32 nData2, 
-                                OMX_PTR pEventData){
-        //ofLog() << "resizerEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData);
-
-        return OMX_ErrorNone;
-        
-    }
+                                OMX_PTR pEventData);
     
     OMX_HANDLETYPE encoder;
     OMX_BUFFERHEADERTYPE* inputBuffer;
@@ -123,12 +120,7 @@ public:
                                 OMX_PTR pAppData, 
                                 OMX_EVENTTYPE event, 
                                 OMX_U32 nData1, OMX_U32 nData2, 
-                                OMX_PTR pEventData)
-    {
-        ofLog() << "encoderEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData);
-        return OMX_ErrorNone;
-
-    }
+                                OMX_PTR pEventData);
     static OMX_ERRORTYPE 
     encoderEmptyBufferDone(OMX_IN OMX_HANDLETYPE, 
                            OMX_IN OMX_PTR, 

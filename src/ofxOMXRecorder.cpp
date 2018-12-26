@@ -83,7 +83,9 @@ ofxOMXRecorder::~ofxOMXRecorder()
 void ofxOMXRecorder::setup(ofxOMXRecorderSettings settings_)
 {
     settings = settings_;
-    
+    settings.outputWidth = VCOS_ALIGN_UP(settings.outputWidth, 64);
+    settings.outputHeight = VCOS_ALIGN_UP(settings.outputHeight, 64);
+
     OMX_ERRORTYPE error = OMX_ErrorNone;
     error = OMX_Init();
     OMX_TRACE(error);
@@ -279,9 +281,15 @@ void ofxOMXRecorder::setup(ofxOMXRecorderSettings settings_)
     error = SetComponentState(encoder, OMX_StateExecuting);
     OMX_TRACE(error);
 
+    startThread();
     isOpen = true;
 }
+
+
+void ofxOMXRecorder::threadedFunction()
+{
     
+}
 void ofxOMXRecorder::startRecording(string absoluteFilePath_) //default ""
 {
 
@@ -381,35 +389,57 @@ void ofxOMXRecorder::update(unsigned char* pixels)
     OMX_TRACE(error);
    
     
+
+}
+
+OMX_ERRORTYPE 
+ofxOMXRecorder::resizerEventHandlerCallback(OMX_HANDLETYPE hComponent, 
+                                            OMX_PTR pAppData, 
+                                            OMX_EVENTTYPE event, 
+                                            OMX_U32 nData1, OMX_U32 nData2, 
+                                            OMX_PTR pEventData)
+{
+    //ofLog() << "resizerEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData);
     
+    return OMX_ErrorNone;
     
 }
 
-OMX_ERRORTYPE ofxOMXRecorder::resizerEmptyBufferDone(OMX_HANDLETYPE resizer, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE*)
+
+OMX_ERRORTYPE 
+ofxOMXRecorder::resizerEmptyBufferDone(OMX_HANDLETYPE resizer, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE*)
 {
     return OMX_ErrorNone;
 
 }
 
-OMX_ERRORTYPE ofxOMXRecorder::resizerFillBufferDone(OMX_HANDLETYPE, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE*)
+OMX_ERRORTYPE 
+ofxOMXRecorder::resizerFillBufferDone(OMX_HANDLETYPE, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE*)
 {
-    ofLogNotice(__func__) << endl;
-    
-    
+    //ofLogNotice(__func__) << endl;
     ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
-    
-    
     recorder->encoderInputBuffer->pBuffer =    recorder->resizeOutputBuffer->pBuffer;
     recorder->encoderInputBuffer->nFilledLen = recorder->resizeOutputBuffer->nFilledLen;
-    
-    
-    
+
     OMX_ERRORTYPE error = OMX_EmptyThisBuffer(recorder->encoder, recorder->encoderInputBuffer);
     OMX_TRACE(error);
     
     return OMX_ErrorNone;
     
 }
+
+OMX_ERRORTYPE 
+ofxOMXRecorder::encoderEventHandlerCallback(OMX_HANDLETYPE hComponent, 
+                                            OMX_PTR pAppData, 
+                                            OMX_EVENTTYPE event, 
+                                            OMX_U32 nData1, OMX_U32 nData2, 
+                                            OMX_PTR pEventData)
+{
+    //ofLog() << "encoderEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData);
+    return OMX_ErrorNone;
+    
+}
+
 OMX_ERRORTYPE ofxOMXRecorder::encoderEmptyBufferDone(OMX_HANDLETYPE hComponent, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE* pBuffer)
 {
     ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
