@@ -48,7 +48,6 @@ public:
     ~ofxOMXRecorder();
     ofxOMXRecorderListener* listener;
     void setup(ofxOMXRecorderSettings);
-    void update(unsigned char* pixels);
 
     void startRecording(string absoluteFilePath_="");
     void stopRecording();
@@ -83,6 +82,12 @@ public:
     
     void writeFile();
     
+    
+    vector<unsigned char*> pixelBufferQueue;
+    vector<unsigned char*> garbageQueue;
+    void clearGarbage();
+    int pixelDataSize;
+    void addFrame(unsigned char* pixels);
     void threadedFunction();
 
     OMX_HANDLETYPE resizer;
@@ -114,7 +119,6 @@ public:
     
     bool bufferAvailable;
 
-    
     static OMX_ERRORTYPE 
     encoderEventHandlerCallback(OMX_HANDLETYPE hComponent, 
                                 OMX_PTR pAppData, 

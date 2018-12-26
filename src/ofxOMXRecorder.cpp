@@ -23,6 +23,7 @@ void ofxOMXRecorder::resetValues()
     finishedRecording = false;
     isOpen = false;
     canTakeFrame = false;
+    pixelDataSize = 0;
 
 }
 
@@ -83,6 +84,8 @@ ofxOMXRecorder::~ofxOMXRecorder()
 void ofxOMXRecorder::setup(ofxOMXRecorderSettings settings_)
 {
     settings = settings_;
+    pixelDataSize = settings.width*settings.height*4;
+    
     settings.outputWidth = VCOS_ALIGN_UP(settings.outputWidth, 64);
     settings.outputHeight = VCOS_ALIGN_UP(settings.outputHeight, 64);
 
@@ -282,13 +285,53 @@ void ofxOMXRecorder::setup(ofxOMXRecorderSettings settings_)
     OMX_TRACE(error);
 
     startThread();
+    canTakeFrame = true;
     isOpen = true;
 }
 
-
-void ofxOMXRecorder::threadedFunction()
+void ofxOMXRecorder::addFrame(unsigned char* incomingPixels)
 {
     
+    lock();
+        if(pixelBufferQueue.size() < 30)
+        {
+            
+            unsigned char* pixels = new unsigned char[pixelDataSize];
+            memcpy(pixels, incomingPixels, pixelDataSize);
+            pixelBufferQueue.push_back(pixels);
+        }
+        
+    unlock();
+    
+    
+}
+void ofxOMXRecorder::threadedFunction()
+{
+    while(isThreadRunning())
+    {
+        if(!pixelBufferQueue.empty())
+        {
+            if(canTakeFrame)
+            {
+                canTakeFrame = false;
+                
+                resizeInputBuffer->pBuffer = pixelBufferQueue.front();
+                resizeInputBuffer->nFilledLen = pixelDataSize;
+
+                OMX_ERRORTYPE error = OMX_EmptyThisBuffer(resizer, resizeInputBuffer);
+                OMX_TRACE(error);
+                sleep(20);
+                garbageQueue.emplace_back(pixelBufferQueue.front());
+                pixelBufferQueue.erase(pixelBufferQueue.begin());
+
+                error = OMX_FillThisBuffer(resizer, resizeOutputBuffer);
+                OMX_TRACE(error);
+                
+                
+            }
+            
+        }  
+    }
 }
 void ofxOMXRecorder::startRecording(string absoluteFilePath_) //default ""
 {
@@ -306,7 +349,6 @@ void ofxOMXRecorder::startRecording(string absoluteFilePath_) //default ""
     startedRecording = true;
     stopRequested = false;
     finishedRecording = false;
-    canTakeFrame = true;
 
     //Start encoder
     if(listener)
@@ -360,38 +402,6 @@ void ofxOMXRecorder::stopRecording()
     stopRequested = true;
 }
 
-
-void ofxOMXRecorder::update(unsigned char* pixels)
-{
-    if (!isOpen) 
-    {
-        ofLogError(__func__) << "NOT OPEN";
-        return;
-    }
-    if (!pixels) 
-    {
-        ofLogError(__func__) << "pixels is NULL";
-        return;
-    }
-    if (finishedRecording) 
-    {
-        return;
-    }
-    canTakeFrame = false;
-    resizeInputBuffer->pBuffer = pixels;
-    resizeInputBuffer->nFilledLen = pixelSize;
-    //ofLogVerbose(__func__) << "resizeInputBuffer: " << GetBufferHeaderString(resizeInputBuffer);
-
-    OMX_ERRORTYPE error = OMX_EmptyThisBuffer(resizer, resizeInputBuffer);
-    OMX_TRACE(error);
-    
-    error = OMX_FillThisBuffer(resizer, resizeOutputBuffer);
-    OMX_TRACE(error);
-   
-    
-
-}
-
 OMX_ERRORTYPE 
 ofxOMXRecorder::resizerEventHandlerCallback(OMX_HANDLETYPE hComponent, 
                                             OMX_PTR pAppData, 
@@ -416,14 +426,15 @@ ofxOMXRecorder::resizerEmptyBufferDone(OMX_HANDLETYPE resizer, OMX_PTR pAppData,
 OMX_ERRORTYPE 
 ofxOMXRecorder::resizerFillBufferDone(OMX_HANDLETYPE, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE*)
 {
-    //ofLogNotice(__func__) << endl;
+    ofLogNotice(__func__) << endl;
     ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
+    
     recorder->encoderInputBuffer->pBuffer =    recorder->resizeOutputBuffer->pBuffer;
     recorder->encoderInputBuffer->nFilledLen = recorder->resizeOutputBuffer->nFilledLen;
 
     OMX_ERRORTYPE error = OMX_EmptyThisBuffer(recorder->encoder, recorder->encoderInputBuffer);
     OMX_TRACE(error);
-    
+
     return OMX_ErrorNone;
     
 }
@@ -443,8 +454,11 @@ ofxOMXRecorder::encoderEventHandlerCallback(OMX_HANDLETYPE hComponent,
 OMX_ERRORTYPE ofxOMXRecorder::encoderEmptyBufferDone(OMX_HANDLETYPE hComponent, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE* pBuffer)
 {
     ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
+    //recorder->lock();
+
     OMX_ERRORTYPE error = OMX_FillThisBuffer(hComponent, recorder->encoderOutputBuffer);
     OMX_TRACE(error);
+    //recorder->unlock();
     return error;
 }
 
@@ -457,6 +471,7 @@ OMX_ERRORTYPE ofxOMXRecorder::encoderEmptyBufferDone(OMX_HANDLETYPE hComponent, 
 OMX_ERRORTYPE ofxOMXRecorder::encoderFillBufferDone(OMX_HANDLETYPE hComponent, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE* encoderOutputBuffer)
 {    
     ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
+    //recorder->lock();
 
     bool isKeyFrame =  (encoderOutputBuffer->nFlags & OMX_BUFFERFLAG_SYNCFRAME);
     if (isKeyFrame)
@@ -479,14 +494,31 @@ OMX_ERRORTYPE ofxOMXRecorder::encoderFillBufferDone(OMX_HANDLETYPE hComponent, O
         {
             recorder->listener->onFrameRecorded();
         }
+        for(size_t i=0; i<recorder->garbageQueue.size(); i++)
+        {
+            delete[] recorder->garbageQueue[i];
+            ofLog() << "DELETED " << recorder->garbageQueue.size();
+        }
+        recorder->garbageQueue.clear();
+    
         recorder->canTakeFrame = true;
 
     }
+    //recorder->unlock();
 
     return OMX_ErrorNone;
 }
 
-
+void ofxOMXRecorder::clearGarbage()
+{
+    /*lock();
+    for(size_t i=0; i<recorder->garbageQueue.size(); i++)
+    {
+        delete[] recorder->garbageQueue[i];
+        ofLog() << "DELETED " << recorder->garbageQueue.size();
+    }
+    unlock();*/
+}
 
 
 string ofxOMXRecorder::createFileName()
@@ -495,7 +527,7 @@ string ofxOMXRecorder::createFileName()
     fileName << ofGetTimestampString();
     if (settings.enablePrettyFileName) 
     {
-        fileName << "_"<< settings.width << "x" << settings.height << "_";
+        fileName << "_"<< settings.outputWidth << "x" << settings.outputHeight << "_";
         fileName << settings.fps << "fps_";
         fileName << settings.bitrateMegabytesPerSecond << "MBps_";
         fileName << frameCounter << "frames";
