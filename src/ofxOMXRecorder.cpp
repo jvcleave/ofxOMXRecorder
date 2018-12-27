@@ -23,7 +23,6 @@ void ofxOMXRecorder::resetValues()
     isOpen = false;
     canTakeFrame = false;
     pixelDataSize = 0;
-    portSettingsChanged =false;
     recordingFileBufferMaxSizeMB = 5;
 
 }
@@ -295,13 +294,12 @@ void ofxOMXRecorder::addFrame(unsigned char* incomingPixels)
     
     //lock();
     
-        if(pixelBufferQueue.size() < 60)
+        if(pixelBufferQueue.size() < 30)
         {
-            LINE_TIME_START
+            
             unsigned char* pixels = new unsigned char[pixelDataSize];
             memcpy(pixels, incomingPixels, pixelDataSize);
             pixelBufferQueue.push_back(pixels);
-            LINE_TIME_END("PIXEL ALLOC");
         }
         ofLog() << "pixelBufferQueue.size():"  << pixelBufferQueue.size();
     //unlock();
@@ -405,138 +403,72 @@ void ofxOMXRecorder::stopRecording()
     stopRequested = true;
 }
 
-OMX_ERRORTYPE 
-ofxOMXRecorder::resizerEventHandlerCallback(OMX_HANDLETYPE hComponent, 
-                                            OMX_PTR pAppData, 
-                                            OMX_EVENTTYPE event, 
-                                            OMX_U32 nData1, OMX_U32 nData2, 
-                                            OMX_PTR pEventData)
-{
-    //ofLog() << "resizerEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData);
-    ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
 
-    if(event == OMX_EventPortSettingsChanged)
-    {
-        ofLog() << "resizerEventHandlerCallback OMX_EventPortSettingsChanged";
-        ofLog() << "resizerEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData);
-        recorder->portSettingsChanged = true;
-    }
-    return OMX_ErrorNone;
+void ofxOMXRecorder::onResizerEmptyBuffer()
+{
     
 }
 
-
-OMX_ERRORTYPE 
-ofxOMXRecorder::resizerEmptyBufferDone(OMX_HANDLETYPE resizer, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE*)
+void ofxOMXRecorder::onResizerFillBuffer()
 {
-    /*ofLogNotice(__func__) << endl;
-
-    ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
-
-    OMX_ERRORTYPE error = OMX_FillThisBuffer(recorder->resizer, recorder->resizeOutputBuffer);
-    OMX_TRACE(error);*/
+    encoderInputBuffer->pBuffer =    resizeOutputBuffer->pBuffer;
+    encoderInputBuffer->nFilledLen = resizeOutputBuffer->nFilledLen;
     
-    
-    return OMX_ErrorNone;
-
-}
-
-OMX_ERRORTYPE 
-ofxOMXRecorder::resizerFillBufferDone(OMX_HANDLETYPE, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE*)
-{
-    ofLogNotice(__func__) << endl;
-    ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
-    
-    recorder->encoderInputBuffer->pBuffer =    recorder->resizeOutputBuffer->pBuffer;
-    recorder->encoderInputBuffer->nFilledLen = recorder->resizeOutputBuffer->nFilledLen;
-
-    OMX_ERRORTYPE error = OMX_EmptyThisBuffer(recorder->encoder, recorder->encoderInputBuffer);
+    OMX_ERRORTYPE error = OMX_EmptyThisBuffer(encoder, encoderInputBuffer);
     OMX_TRACE(error);
-
-    return OMX_ErrorNone;
-    
 }
 
-OMX_ERRORTYPE 
-ofxOMXRecorder::encoderEventHandlerCallback(OMX_HANDLETYPE hComponent, 
-                                            OMX_PTR pAppData, 
-                                            OMX_EVENTTYPE event, 
-                                            OMX_U32 nData1, OMX_U32 nData2, 
-                                            OMX_PTR pEventData)
-{
-    //ofLog() << "encoderEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData);
-    
-    
-    return OMX_ErrorNone;
-    
-}
 
-OMX_ERRORTYPE ofxOMXRecorder::encoderEmptyBufferDone(OMX_HANDLETYPE hComponent, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE* pBuffer)
+void ofxOMXRecorder::onEncoderEmptyBuffer()
 {
-    ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
-    //recorder->lock();
-
-    OMX_ERRORTYPE error = OMX_FillThisBuffer(hComponent, recorder->encoderOutputBuffer);
+    OMX_ERRORTYPE error = OMX_FillThisBuffer(encoder, encoderOutputBuffer);
     OMX_TRACE(error);
-    //recorder->unlock();
-    return error;
 }
 
 
-
-
-
-
-
-OMX_ERRORTYPE ofxOMXRecorder::encoderFillBufferDone(OMX_HANDLETYPE hComponent, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE* encoderOutputBuffer)
-{    
-    ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
-    //recorder->lock();
-
+void ofxOMXRecorder::onEncoderFillBuffer()
+{
     bool isKeyFrame =  (encoderOutputBuffer->nFlags & OMX_BUFFERFLAG_SYNCFRAME);
     if (isKeyFrame)
     {
-        ofLogVerbose(__func__) << recorder->frameCounter << " IS KEYFRAME";
-
+        ofLogVerbose(__func__) << frameCounter << " IS KEYFRAME";
+        
     }
-    int bufferSizeMB = recorder->recordingFileBuffer.size()*.000001;
+    int bufferSizeMB = recordingFileBuffer.size()*.000001;
     
-    if (recorder->stopRequested && isKeyFrame) 
+    if (stopRequested && isKeyFrame) 
     {
-       
-        recorder->finishedRecording = true;
-        recorder->writeFile();
+        
+        finishedRecording = true;
+        writeFile();
     }else
     {
-        recorder->frameCounter++;
-        recorder->recordingFileBuffer.append((const char*) encoderOutputBuffer->pBuffer + encoderOutputBuffer->nOffset, encoderOutputBuffer->nFilledLen);
-        ofLog() << "frameCounter: " << recorder->frameCounter << " : " << bufferSizeMB <<"MB";
-
-        if(bufferSizeMB >= recorder->recordingFileBufferMaxSizeMB)
+        frameCounter++;
+        recordingFileBuffer.append((const char*) encoderOutputBuffer->pBuffer + encoderOutputBuffer->nOffset, encoderOutputBuffer->nFilledLen);
+        ofLog() << "frameCounter: " << frameCounter << " : " << bufferSizeMB <<"MB";
+        
+        if(bufferSizeMB >= recordingFileBufferMaxSizeMB)
         {
             if(isKeyFrame)
             {
-                recorder->writeBuffer();
+                writeBuffer();
             }
         }
         
-        if(recorder->listener)
+        if(listener)
         {
-            recorder->listener->onFrameRecorded();
+            listener->onFrameRecorded();
         }
-        for(size_t i=0; i<recorder->garbageQueue.size(); i++)
+        for(size_t i=0; i<garbageQueue.size(); i++)
         {
-            delete[] recorder->garbageQueue[i];
-            ofLog() << "DELETED " << recorder->garbageQueue.size();
+            delete[] garbageQueue[i];
+            ofLog() << "DELETED " << garbageQueue.size();
         }
-        recorder->garbageQueue.clear();
-    
-        recorder->canTakeFrame = true;
-
+        garbageQueue.clear();
+        
+        canTakeFrame = true;
+        
     }
-    //recorder->unlock();
-
-    return OMX_ErrorNone;
 }
 
 void ofxOMXRecorder::clearGarbage()

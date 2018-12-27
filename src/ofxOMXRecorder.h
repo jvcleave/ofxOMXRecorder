@@ -94,21 +94,41 @@ public:
     OMX_BUFFERHEADERTYPE* resizeInputBuffer;
     OMX_BUFFERHEADERTYPE* resizeOutputBuffer;
 
-    static OMX_ERRORTYPE 
-    resizerEmptyBufferDone(OMX_HANDLETYPE, OMX_PTR, OMX_BUFFERHEADERTYPE*);
+    
+    void onResizerEmptyBuffer();
+    void onResizerFillBuffer();
+    void onEncoderEmptyBuffer();
+    void onEncoderFillBuffer();
+    static OMX_ERRORTYPE resizerEmptyBufferDone(OMX_HANDLETYPE resizer,
+                                                OMX_PTR pAppData,
+                                                OMX_BUFFERHEADERTYPE*)
+    {
+        ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
+        recorder->onResizerEmptyBuffer();
+        return OMX_ErrorNone;
+    }
     
     static OMX_ERRORTYPE
-    resizerFillBufferDone(OMX_HANDLETYPE,
-                          OMX_PTR,
-                          OMX_BUFFERHEADERTYPE*);
+    resizerFillBufferDone(OMX_HANDLETYPE, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE*)
+    {
+        ofLogNotice(__func__) << endl;
+        ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
+        recorder->onResizerFillBuffer();
+        return OMX_ErrorNone;
+    }
     
     static OMX_ERRORTYPE 
     resizerEventHandlerCallback(OMX_HANDLETYPE hComponent, 
-                                OMX_PTR pAppData, 
-                                OMX_EVENTTYPE event, 
-                                OMX_U32 nData1, OMX_U32 nData2, 
-                                OMX_PTR pEventData);
-    
+                                                OMX_PTR pAppData, 
+                                                OMX_EVENTTYPE event, 
+                                                OMX_U32 nData1, OMX_U32 nData2, 
+                                                OMX_PTR pEventData)
+    {
+        //ofLog() << "resizerEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData);
+        
+        return OMX_ErrorNone;
+        
+    }
     OMX_HANDLETYPE encoder;
     OMX_BUFFERHEADERTYPE* inputBuffer;
 
@@ -124,15 +144,28 @@ public:
                                 OMX_PTR pAppData, 
                                 OMX_EVENTTYPE event, 
                                 OMX_U32 nData1, OMX_U32 nData2, 
-                                OMX_PTR pEventData);
+                                OMX_PTR pEventData)
+    {
+        //ofLog() << "encoderEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData);
+        
+        
+        return OMX_ErrorNone;
+        
+    }
     static OMX_ERRORTYPE 
-    encoderEmptyBufferDone(OMX_IN OMX_HANDLETYPE, 
-                           OMX_IN OMX_PTR, 
-                           OMX_IN OMX_BUFFERHEADERTYPE*);
+    encoderEmptyBufferDone(OMX_HANDLETYPE hComponent, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE* pBuffer)
+    {
+        ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
+        recorder->onEncoderEmptyBuffer();
+        return OMX_ErrorNone;
+    }
     
     static OMX_ERRORTYPE
-    encoderFillBufferDone(OMX_IN OMX_HANDLETYPE,
-                          OMX_IN OMX_PTR,
-                          OMX_IN OMX_BUFFERHEADERTYPE*);
-    bool portSettingsChanged;
+    encoderFillBufferDone(OMX_HANDLETYPE hComponent, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE* encoderOutputBuffer)
+    {    
+        ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
+        recorder->onEncoderFillBuffer();
+        return OMX_ErrorNone;
+
+    }
 };
