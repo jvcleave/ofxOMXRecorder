@@ -49,7 +49,7 @@ public:
     ofxOMXRecorderListener* listener;
     void setup(ofxOMXRecorderSettings);
 
-    void startRecording(string absoluteFilePath_="");
+    void startRecording();
     void stopRecording();
     bool isRecording();
     
@@ -74,15 +74,15 @@ public:
     int pixelSize;
     bool stopRequested;
     ofBuffer recordingFileBuffer;
-    string absoluteFilePath;
+    int recordingFileBufferMaxSizeMB;
     int frameCounter;
     
     bool startedRecording;
     bool finishedRecording;
     
     void writeFile();
-    
-    
+    void writeBuffer();
+    ofDirectory saveFolder;
     vector<unsigned char*> pixelBufferQueue;
     vector<unsigned char*> garbageQueue;
     void clearGarbage();
@@ -134,4 +134,5 @@ public:
     encoderFillBufferDone(OMX_IN OMX_HANDLETYPE,
                           OMX_IN OMX_PTR,
                           OMX_IN OMX_BUFFERHEADERTYPE*);
+    bool portSettingsChanged;
 };
