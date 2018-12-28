@@ -53,7 +53,6 @@ public:
     void stopRecording();
     bool isRecording();
     
-    vector<ofFile>recordings;
     string createFileName();
     void setKeyFrameInterval(int);
     
@@ -71,10 +70,8 @@ public:
     void destroyEncoder();
     ofxOMXRecorderSettings settings;
     
-    int pixelSize;
     bool stopRequested;
     ofBuffer recordingFileBuffer;
-    int recordingFileBufferMaxSizeMB;
     int frameCounter;
     
     bool startedRecording;
@@ -85,7 +82,7 @@ public:
     ofDirectory saveFolder;
     vector<unsigned char*> pixelBufferQueue;
     vector<unsigned char*> garbageQueue;
-    void clearGarbage();
+
     int pixelDataSize;
     void addFrame(unsigned char* pixels);
     void threadedFunction();

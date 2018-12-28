@@ -2,6 +2,7 @@
 
 
 
+static bool hasEmptyBeenCalled =false;
 
 ofxOMXRecorder::ofxOMXRecorder()
 {
@@ -15,7 +16,6 @@ void ofxOMXRecorder::resetValues()
     resizeInputBuffer = NULL;
     encoderOutputBuffer = NULL;
     listener = NULL;
-    pixelSize = 0;
     frameCounter = 0;
     stopRequested = false;
     startedRecording = false;
@@ -23,7 +23,7 @@ void ofxOMXRecorder::resetValues()
     isOpen = false;
     canTakeFrame = false;
     pixelDataSize = 0;
-    recordingFileBufferMaxSizeMB = 5;
+    hasEmptyBeenCalled = false;
 
 }
 
@@ -71,6 +71,7 @@ void ofxOMXRecorder::destroyEncoder()
         
     }
     resetValues();
+    ofLogNotice(__func__) << "END";
 }
 
 ofxOMXRecorder::~ofxOMXRecorder()
@@ -178,12 +179,10 @@ void ofxOMXRecorder::setup(ofxOMXRecorderSettings settings_)
     //encoderInputPort.format.video.eColorFormat = OMX_COLOR_FormatYUV420PackedPlanar;
     if (settings.colorFormat == GL_RGB) 
     {
-        pixelSize = settings.outputWidth * settings.outputHeight * 3;
         encoderInputPort.format.video.eColorFormat = OMX_COLOR_Format24bitBGR888;
     }
     if (settings.colorFormat == GL_RGBA) 
     {
-        pixelSize = settings.outputWidth * settings.outputHeight * 4;
         encoderInputPort.format.video.eColorFormat = OMX_COLOR_Format32bitABGR8888;
     }
     
@@ -287,12 +286,14 @@ void ofxOMXRecorder::setup(ofxOMXRecorderSettings settings_)
     startThread();
     canTakeFrame = true;
     isOpen = true;
+    ofLogNotice(__func__) << "END";
+
 }
 
 void ofxOMXRecorder::addFrame(unsigned char* incomingPixels)
 {
     
-    //lock();
+    lock();
     
         if(pixelBufferQueue.size() < 30)
         {
@@ -302,7 +303,7 @@ void ofxOMXRecorder::addFrame(unsigned char* incomingPixels)
             pixelBufferQueue.push_back(pixels);
         }
         ofLog() << "pixelBufferQueue.size():"  << pixelBufferQueue.size();
-    //unlock();
+    unlock();
     
     
 }
@@ -310,29 +311,45 @@ void ofxOMXRecorder::threadedFunction()
 {
     while(isThreadRunning())
     {
-        if(!pixelBufferQueue.empty())
+        if(finishedRecording)
         {
-            if(canTakeFrame)
-            {
-                canTakeFrame = false;
-                
-                resizeInputBuffer->pBuffer = pixelBufferQueue.front();
-                resizeInputBuffer->nFilledLen = pixelDataSize;
-                OMX_ERRORTYPE error = OMX_ErrorNone;
-
-                error = OMX_EmptyThisBuffer(resizer, resizeInputBuffer);
-                OMX_TRACE(error);
-                //sleep(20);
-                
-                garbageQueue.emplace_back(pixelBufferQueue.front());
-                pixelBufferQueue.erase(pixelBufferQueue.begin());
-                
-                error = OMX_FillThisBuffer(resizer, resizeOutputBuffer);
-                OMX_TRACE(error); 
-
-            }
             
-        }  
+            
+        }else
+        {
+            if(!pixelBufferQueue.empty())
+            {
+                if(canTakeFrame)
+                {
+                    canTakeFrame = false;
+                    
+                    resizeInputBuffer->pBuffer = pixelBufferQueue.front();
+                    resizeInputBuffer->nFilledLen = pixelDataSize;
+                    OMX_ERRORTYPE error = OMX_ErrorNone;
+                    
+                    error = OMX_EmptyThisBuffer(resizer, resizeInputBuffer);
+                    OMX_TRACE(error);
+                    //sleep(20);
+                    
+                    garbageQueue.emplace_back(pixelBufferQueue.front());
+                    pixelBufferQueue.erase(pixelBufferQueue.begin());
+                    
+                    if(frameCounter == 0)
+                    {
+                        ofLog() << "hasEmptyBeenCalled: " << hasEmptyBeenCalled;
+                        if(!hasEmptyBeenCalled)
+                        {
+                            error = OMX_FillThisBuffer(resizer, resizeOutputBuffer);
+                            OMX_TRACE(error); 
+                        }
+                        
+                    }
+                    
+                }
+                
+            }  
+        }
+        
     }
 }
 void ofxOMXRecorder::startRecording()
@@ -343,9 +360,10 @@ void ofxOMXRecorder::startRecording()
     {
         return;
     }
-    
-    saveFolder = ofDirectory(ofToDataPath(ofGetTimestampString(), true));
-    saveFolder.create();
+    if(!isOpen)
+    {
+        setup(settings);
+    }
         
     startedRecording = true;
     stopRequested = false;
@@ -407,15 +425,34 @@ void ofxOMXRecorder::stopRecording()
 void ofxOMXRecorder::onResizerEmptyBuffer()
 {
     
+    lock();
+        ofLogVerbose(__func__) << "hasEmptyBeenCalled: " << frameCounter;
+        hasEmptyBeenCalled = true;
+    unlock();
+    
+    if(hasEmptyBeenCalled)
+    {
+        OMX_ERRORTYPE error = OMX_ErrorNone;
+        error = OMX_FillThisBuffer(resizer, resizeOutputBuffer);
+        OMX_TRACE(error); 
+    }
+    
 }
 
 void ofxOMXRecorder::onResizerFillBuffer()
 {
+    lock();
+    ofLogVerbose(__func__) << endl;
+
     encoderInputBuffer->pBuffer =    resizeOutputBuffer->pBuffer;
     encoderInputBuffer->nFilledLen = resizeOutputBuffer->nFilledLen;
     
+    unlock();
+    
     OMX_ERRORTYPE error = OMX_EmptyThisBuffer(encoder, encoderInputBuffer);
     OMX_TRACE(error);
+    
+    
 }
 
 
@@ -438,50 +475,55 @@ void ofxOMXRecorder::onEncoderFillBuffer()
     
     if (stopRequested && isKeyFrame) 
     {
-        
         finishedRecording = true;
+        lock();
+        stopThread();
+        ofLog() << "WRITING FILE";
+        
         writeFile();
+        
+        
+        if(!pixelBufferQueue.empty())
+        {
+            for(size_t i=0; i<pixelBufferQueue.size(); i++)
+            {
+                if(pixelBufferQueue[i])
+                {
+                    delete[] pixelBufferQueue[i];
+                    ofLog() << "DELETED pixelBufferQueue" << i;
+                }
+            }
+            pixelBufferQueue.clear();
+        }
+        unlock();
     }else
     {
         frameCounter++;
         recordingFileBuffer.append((const char*) encoderOutputBuffer->pBuffer + encoderOutputBuffer->nOffset, encoderOutputBuffer->nFilledLen);
         ofLog() << "frameCounter: " << frameCounter << " : " << bufferSizeMB <<"MB";
         
-        if(bufferSizeMB >= recordingFileBufferMaxSizeMB)
+        if(!garbageQueue.empty())
         {
-            if(isKeyFrame)
+            for(size_t i=0; i<garbageQueue.size(); i++)
             {
-                writeBuffer();
+                if(garbageQueue[i])
+                {
+                    delete[] garbageQueue[i];
+                    ofLog() << "DELETED garbageQueue" << i;
+                }
             }
+            garbageQueue.clear();
         }
         
         if(listener)
         {
             listener->onFrameRecorded();
         }
-        for(size_t i=0; i<garbageQueue.size(); i++)
-        {
-            delete[] garbageQueue[i];
-            ofLog() << "DELETED " << garbageQueue.size();
-        }
-        garbageQueue.clear();
-        
         canTakeFrame = true;
         
     }
-}
 
-void ofxOMXRecorder::clearGarbage()
-{
-    /*lock();
-    for(size_t i=0; i<recorder->garbageQueue.size(); i++)
-    {
-        delete[] recorder->garbageQueue[i];
-        ofLog() << "DELETED " << recorder->garbageQueue.size();
-    }
-    unlock();*/
 }
-
 
 string ofxOMXRecorder::createFileName()
 {
@@ -493,108 +535,33 @@ string ofxOMXRecorder::createFileName()
         fileName << settings.fps << "fps_";
         fileName << settings.bitrateMegabytesPerSecond << "MBps_";
         fileName << frameCounter << "frames";
-        fileName << "_" << recordings.size();
     }
     return fileName.str();
     
 }
 
-void ofxOMXRecorder::writeBuffer()
-{
-    string fullPath = saveFolder.path() + "/"+ createFileName();
-    string absoluteFilePath = ofToDataPath(fullPath, true);
-    ofLog() << "absoluteFilePath: " << absoluteFilePath;
-    
-    bool didWriteFile = ofBufferToFile(absoluteFilePath, recordingFileBuffer, true);
-    if(didWriteFile)
-    {
-        if(listener)
-        {
-            listener->onFileWritten(absoluteFilePath);
-        }
-        
-        ofFile file(absoluteFilePath);
-        recordings.push_back(file);
-        ofLogVerbose(__func__) << absoluteFilePath << " SUCCESSFULLY WRITTEN";
-    }else
-    {
-        ofLogError(__func__) << absoluteFilePath << " COULD NOT BE WRITTEN";
-    }
-    recordingFileBuffer.clear();
-}
+
 
 void ofxOMXRecorder::writeFile()
 {
     OMX_ERRORTYPE error  = OMX_ErrorNone;
     
-    error = WaitForState(encoder, OMX_StateIdle);
-    OMX_TRACE(error);
-    
-    
-    error = WaitForState(resizer, OMX_StateIdle);
-    OMX_TRACE(error);
-    
-    error = FlushOMXComponent(resizer, OMX_ALL);
-    OMX_TRACE(error);
-    
-    error = FlushOMXComponent(encoder, OMX_ALL);
-    OMX_TRACE(error);
-    
-    writeBuffer();
-    
+    string fullPath = createFileName()+".h264";
+    string absoluteFilePath = ofToDataPath(fullPath, true);
+    bool didWrite = ofBufferToFile(absoluteFilePath, recordingFileBuffer);
+    if(didWrite)
+    {
+        ofLog() << absoluteFilePath << "WRITE SUCCESS";
+    }else
+    {
+        ofLog() << absoluteFilePath << "WRITE FAIL";
+
+    }
+    recordingFileBuffer.clear();
     frameCounter = 0;
     
     startedRecording = false;
     stopRequested = false;
-    
-    if(finishedRecording)
-    {
-        if(recordings.size() > 1)
-        {
-            ofBuffer consolidatedBuffer;
-            
-            for(size_t i=0; i<recordings.size(); i++)
-            {
-                ofBuffer fileBuffer = ofBufferFromFile(recordings[i]);
-                consolidatedBuffer.append(fileBuffer.getData(), fileBuffer.size());
-            }
-            stringstream ss;
-            ss << saveFolder.path() << "/CONSOLIDATED_" << createFileName() << ".h264";
-            
-            bool didConsolidate = ofBufferToFile(ss.str(), consolidatedBuffer);
-            ofLog() << "didConsolidate: " << didConsolidate << " : " << ss.str();
-            if(didConsolidate)
-            {
-                for(size_t i=0; i<recordings.size(); i++)
-                {
-                    recordings[i].remove();
-                }
-                recordings.clear();
-            }
-
-        }
-        
-    }
-    
-    for(size_t i=0; i<garbageQueue.size(); i++)
-    {
-        if(garbageQueue[i])
-        {
-            delete[] garbageQueue[i];
-            ofLog() << "DELETED garbageQueue" << garbageQueue.size();
-        }
-    }
-    garbageQueue.clear();
-    
-    for(size_t i=0; i<pixelBufferQueue.size(); i++)
-    {
-        if(pixelBufferQueue[i])
-        {
-            delete[] pixelBufferQueue[i];
-            ofLog() << "DELETED pixelBufferQueue" << pixelBufferQueue.size();
-        }
-    }
-    pixelBufferQueue.clear();
     
     destroyEncoder();
 }
