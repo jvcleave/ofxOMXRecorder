@@ -82,11 +82,12 @@ public:
     ofDirectory saveFolder;
     vector<unsigned char*> pixelBufferQueue;
     vector<unsigned char*> garbageQueue;
+    vector<unsigned char*> availableBuffers;
+
 
     int pixelDataSize;
     void addFrame(unsigned char* pixels);
     void threadedFunction();
-    bool hasEmptyBeenCalled;
     
     OMX_HANDLETYPE resizer;
     OMX_BUFFERHEADERTYPE* resizeInputBuffer;
@@ -109,7 +110,6 @@ public:
     static OMX_ERRORTYPE
     resizerFillBufferDone(OMX_HANDLETYPE, OMX_PTR pAppData, OMX_BUFFERHEADERTYPE*)
     {
-        ofLogNotice(__func__) << endl;
         ofxOMXRecorder* recorder = static_cast<ofxOMXRecorder*>(pAppData);
         recorder->onResizerFillBuffer();
         return OMX_ErrorNone;
@@ -122,7 +122,10 @@ public:
                                                 OMX_U32 nData1, OMX_U32 nData2, 
                                                 OMX_PTR pEventData)
     {
-        //ofLog() << "resizerEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData);
+        if(event == OMX_EventError)
+        {
+            ofLog() << "resizerEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData); 
+        }
         
         return OMX_ErrorNone;
         
@@ -144,9 +147,10 @@ public:
                                 OMX_U32 nData1, OMX_U32 nData2, 
                                 OMX_PTR pEventData)
     {
-        //ofLog() << "encoderEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData);
-        
-        
+        if(event == OMX_EventError)
+        {
+           ofLog() << "encoderEventHandlerCallback: " << DebugEventHandlerString(hComponent, event, nData1, nData2, pEventData); 
+        }
         return OMX_ErrorNone;
         
     }
