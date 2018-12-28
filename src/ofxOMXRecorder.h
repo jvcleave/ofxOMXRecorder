@@ -86,7 +86,8 @@ public:
     int pixelDataSize;
     void addFrame(unsigned char* pixels);
     void threadedFunction();
-
+    bool hasEmptyBeenCalled;
+    
     OMX_HANDLETYPE resizer;
     OMX_BUFFERHEADERTYPE* resizeInputBuffer;
     OMX_BUFFERHEADERTYPE* resizeOutputBuffer;

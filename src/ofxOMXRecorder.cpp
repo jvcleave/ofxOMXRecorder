@@ -1,9 +1,5 @@
 #include "ofxOMXRecorder.h"
 
-
-
-static bool hasEmptyBeenCalled =false;
-
 ofxOMXRecorder::ofxOMXRecorder()
 {
     resetValues();
@@ -334,15 +330,12 @@ void ofxOMXRecorder::threadedFunction()
                     garbageQueue.emplace_back(pixelBufferQueue.front());
                     pixelBufferQueue.erase(pixelBufferQueue.begin());
                     
-                    if(frameCounter == 0)
+                    if(!hasEmptyBeenCalled)
                     {
-                        ofLog() << "hasEmptyBeenCalled: " << hasEmptyBeenCalled;
-                        if(!hasEmptyBeenCalled)
-                        {
-                            error = OMX_FillThisBuffer(resizer, resizeOutputBuffer);
-                            OMX_TRACE(error); 
-                        }
-                        
+                        ofLog() << "emptying Manually at frame#: " << frameCounter;
+
+                        error = OMX_FillThisBuffer(resizer, resizeOutputBuffer);
+                        OMX_TRACE(error); 
                     }
                     
                 }
@@ -425,11 +418,11 @@ void ofxOMXRecorder::stopRecording()
 void ofxOMXRecorder::onResizerEmptyBuffer()
 {
     
-    lock();
+    /*lock();
         ofLogVerbose(__func__) << "hasEmptyBeenCalled: " << frameCounter;
         hasEmptyBeenCalled = true;
-    unlock();
-    
+    unlock();*/
+    hasEmptyBeenCalled = true;
     if(hasEmptyBeenCalled)
     {
         OMX_ERRORTYPE error = OMX_ErrorNone;
